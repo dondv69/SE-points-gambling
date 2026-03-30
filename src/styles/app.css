@@ -2067,6 +2067,20 @@ input:focus-visible {
   animation: mine-shake 0.3s ease;
 }
 
+.vh-trap-reveal {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.2);
+  color: var(--signal-stop);
+  opacity: 0.5;
+}
+
+.vh-value-reveal {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.15);
+  color: var(--signal-go);
+  opacity: 0.5;
+}
+
 .vh-last {
   box-shadow: 0 0 12px rgba(52, 211, 153, 0.3);
 }

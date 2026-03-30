@@ -118,22 +118,30 @@ export default function VaultHeist({ bet, onComplete }) {
         <div className="vh-grid">
           {vaults.map((vault, i) => {
             const isOpened = opened.has(i);
-            const isTrap = isOpened && vault.type === 'trap';
+            const isHitTrap = isOpened && vault.type === 'trap';
             const isValue = isOpened && vault.type === 'value';
             const isLast = lastOpened === i;
+            // When done, reveal all unopened vaults
+            const showHidden = done && !isOpened;
+            const isHiddenTrap = showHidden && vault.type === 'trap';
+            const isHiddenValue = showHidden && vault.type === 'value';
 
             return (
               <motion.button
                 key={i}
-                className={`vh-vault ${isOpened ? (isTrap ? 'vh-trap' : 'vh-value') : ''} ${isLast && !done ? 'vh-last' : ''}`}
+                className={`vh-vault ${isHitTrap ? 'vh-trap' : ''} ${isValue ? 'vh-value' : ''} ${isHiddenTrap ? 'vh-trap-reveal' : ''} ${isHiddenValue ? 'vh-value-reveal' : ''} ${isLast && !done ? 'vh-last' : ''}`}
                 onClick={() => !done && handleOpen(i)}
                 disabled={isOpened || done}
                 whileTap={!isOpened && !done ? { scale: 0.9 } : {}}
               >
-                {!isOpened && <Lock size={20} />}
-                {isTrap && <Bomb size={20} />}
+                {!isOpened && !showHidden && <Lock size={20} />}
+                {isHitTrap && <Bomb size={20} />}
+                {isHiddenTrap && <Bomb size={16} />}
                 {isValue && (
                   <span className="vh-vault-value">+{vault.amount}x</span>
+                )}
+                {isHiddenValue && (
+                  <span className="vh-vault-value" style={{ opacity: 0.5 }}>+{vault.amount}x</span>
                 )}
               </motion.button>
             );
