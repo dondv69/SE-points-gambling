@@ -930,6 +930,88 @@ input:focus-visible {
   letter-spacing: 2px;
 }
 
+/* ===== BONUS WHEEL ===== */
+.bonus-wheel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 11, 26, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.bonus-wheel-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.bonus-wheel-title {
+  font-family: 'Russo One', sans-serif;
+  font-size: 2rem;
+  color: var(--discharge);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.bonus-wheel-subtitle {
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+}
+
+.wheel-wrapper {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.wheel-pointer {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.8rem;
+  color: #fff;
+  z-index: 10;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  line-height: 1;
+}
+
+.wheel {
+  width: 100%;
+  height: 100%;
+}
+
+.wheel-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 20px rgba(124, 58, 237, 0.3));
+}
+
+.wheel-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.wheel-result-mult {
+  font-family: 'Russo One', sans-serif;
+  font-size: 3rem;
+  color: var(--discharge);
+  letter-spacing: 2px;
+}
+
+.wheel-result-label {
+  font-size: 1rem;
+  color: var(--ink-secondary);
+  font-weight: 600;
+}
+
 /* ===== BONUS OVERLAY ===== */
 .bonus-overlay {
   position: fixed;

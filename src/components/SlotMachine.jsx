@@ -3,13 +3,15 @@ import { AnimatePresence } from 'framer-motion';
 import Reel from './Reel';
 import BetControls from './BetControls';
 import WinDisplay from './WinDisplay';
-import BonusOverlay from './BonusOverlay';
-import { REEL_COUNT, SPIN_DURATION_BASE, SPIN_STAGGER, BONUS_BUY_MULTIPLIER, BONUS_FREE_SPINS, BONUS_WIN_MULTIPLIER, JACKPOT_CONTRIBUTION_RATE, JACKPOT_SEED } from '../utils/constants';
+import BonusWheel from './BonusWheel';
+import { REEL_COUNT, SPIN_DURATION_BASE, SPIN_STAGGER, BONUS_BUY_MULTIPLIER, JACKPOT_CONTRIBUTION_RATE, JACKPOT_SEED } from '../utils/constants';
 import { spinReels, evaluateWin, isBonusTriggered, isNearMiss } from '../utils/slotLogic';
 import { deductPoints, addPoints } from '../utils/api';
 import { audio } from '../utils/audio';
 import { sendChatMessage, formatWinMessage, shouldAnnounce } from '../utils/chatBot';
 import { Trophy, Sparkles } from 'lucide-react';
+
+const BONUS_SPINS = 3;
 
 export default function SlotMachine({ balance, setBalance, username, jackpot, setJackpot, addHistory, addLeaderboardEntry, showToast }) {
   const [spinning, setSpinning] = useState(false);
@@ -18,8 +20,9 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
   const [lastWin, setLastWin] = useState(null);
   const [bonusMode, setBonusMode] = useState(false);
   const [bonusSpinsLeft, setBonusSpinsLeft] = useState(0);
+  const [bonusMultiplier, setBonusMultiplier] = useState(1);
+  const [showWheel, setShowWheel] = useState(false);
   const [nearMiss, setNearMiss] = useState(false);
-  const [showBonusIntro, setShowBonusIntro] = useState(false);
   const stoppedReels = useRef(0);
   const currentResults = useRef([]);
   const broadcastChannel = useRef(
@@ -32,7 +35,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     if (spinning) return;
     await audio.ensure();
 
-    // In bonus mode, free spins — no cost
     const actualBet = bonusMode ? 0 : (isBonusBuy ? bet * BONUS_BUY_MULTIPLIER : bet);
 
     if (!bonusMode && balance < actualBet) {
@@ -40,7 +42,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       return;
     }
 
-    // Deduct bet (unless free spin)
     if (actualBet > 0) {
       setBalance(prev => prev - actualBet);
     }
@@ -50,12 +51,10 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     setNearMiss(false);
     stoppedReels.current = 0;
 
-    // Generate results
     const spinResults = spinReels();
     currentResults.current = spinResults;
     setResults(spinResults);
 
-    // API deduct (not in bonus mode)
     if (actualBet > 0) {
       try {
         await deductPoints(username, actualBet);
@@ -67,7 +66,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       }
     }
 
-    // If bonus buy, force bonus trigger
     if (isBonusBuy) {
       currentResults.current = [
         { id: 'bonus', emoji: '🃏', label: 'Bonus' },
@@ -78,6 +76,15 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     }
   }, [spinning, bet, balance, username, showToast, setBalance, bonusMode]);
 
+  // Wheel result callback
+  const handleWheelResult = useCallback((multiplier) => {
+    setBonusMultiplier(multiplier);
+    setShowWheel(false);
+    setBonusMode(true);
+    setBonusSpinsLeft(BONUS_SPINS);
+    showToast(`${multiplier}x multiplier! ${BONUS_SPINS} free spins!`, 'bonus');
+  }, [showToast]);
+
   const handleReelStop = useCallback((reelIndex) => {
     stoppedReels.current += 1;
     audio.reelStop();
@@ -87,44 +94,42 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
       const res = currentResults.current;
 
-      // Check bonus trigger
+      // Check bonus trigger — show wheel
       if (isBonusTriggered(res)) {
         audio.bonus();
-        setBonusMode(true);
-        setBonusSpinsLeft(BONUS_FREE_SPINS);
-        setShowBonusIntro(true);
-        showToast('BONUS MODE ACTIVATED!', 'bonus');
+        setShowWheel(true);
         return;
       }
 
-      // Evaluate win — use the bet amount even in bonus mode
-      const effectiveBet = bonusMode ? bet : bet;
-      const winResult = evaluateWin(res, effectiveBet, jackpot);
+      // Evaluate win
+      const winResult = evaluateWin(res, bet, jackpot);
 
-      // Apply bonus multiplier
+      // Apply bonus multiplier from wheel
       if (bonusMode && winResult.winAmount > 0) {
-        winResult.winAmount = Math.floor(winResult.winAmount * BONUS_WIN_MULTIPLIER);
-        winResult.label += ` (${BONUS_WIN_MULTIPLIER}x Bonus)`;
+        winResult.winAmount = Math.floor(winResult.winAmount * bonusMultiplier);
+        winResult.label += ` (${bonusMultiplier}x Bonus)`;
       }
 
       if (winResult.type === 'jackpot') {
         audio.jackpot();
-        setBalance(prev => prev + jackpot);
-        addPoints(username, jackpot).catch(() => {});
+        const jackpotWin = bonusMode ? Math.floor(jackpot * bonusMultiplier) : jackpot;
+        setBalance(prev => prev + jackpotWin);
+        addPoints(username, jackpotWin).catch(() => {});
         setJackpot(JACKPOT_SEED);
-        setLastWin({ ...winResult, amount: jackpot });
-        addHistory(res, jackpot, 'jackpot');
-        addLeaderboardEntry(username, jackpot, 'JACKPOT');
-        showToast(`JACKPOT! +${jackpot.toLocaleString()} pts!`, 'jackpot');
+        setLastWin({ ...winResult, amount: jackpotWin });
+        addHistory(res, jackpotWin, 'jackpot');
+        addLeaderboardEntry(username, jackpotWin, 'JACKPOT');
+        showToast(`JACKPOT! +${jackpotWin.toLocaleString()} pts!`, 'jackpot');
         const siteUrl = window.location.origin;
-        sendChatMessage(formatWinMessage(username, jackpot, null, 'jackpot', siteUrl));
-        broadcastChannel.current?.postMessage({ type: 'jackpot', username, amount: jackpot });
+        sendChatMessage(formatWinMessage(username, jackpotWin, null, 'jackpot', siteUrl));
+        broadcastChannel.current?.postMessage({ type: 'jackpot', username, amount: jackpotWin });
       } else if (winResult.winAmount > 0) {
         audio.win(winResult.multiplier);
         setBalance(prev => prev + winResult.winAmount);
         addPoints(username, winResult.winAmount).catch(() => {});
         setLastWin({ ...winResult, amount: winResult.winAmount });
-        const winType = winResult.multiplier >= 25 ? 'mega' : winResult.multiplier >= 10 ? 'big' : 'win';
+        const effectiveMult = bonusMode ? winResult.multiplier * bonusMultiplier : winResult.multiplier;
+        const winType = effectiveMult >= 25 ? 'mega' : effectiveMult >= 10 ? 'big' : 'win';
         addHistory(res, winResult.winAmount - (bonusMode ? 0 : bet), winType === 'mega' ? 'mega' : 'win');
         if (winResult.winAmount >= bet * 5) {
           addLeaderboardEntry(username, winResult.winAmount, winResult.label);
@@ -132,8 +137,8 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         showToast(`+${winResult.winAmount.toLocaleString()} pts!`, winType === 'mega' ? 'mega' : 'win');
         if (shouldAnnounce(winResult.winAmount, bet, winType)) {
           const siteUrl = window.location.origin;
-          sendChatMessage(formatWinMessage(username, winResult.winAmount, winResult.multiplier, winType, siteUrl));
-          broadcastChannel.current?.postMessage({ type: winType, username, amount: winResult.winAmount, multiplier: winResult.multiplier });
+          sendChatMessage(formatWinMessage(username, winResult.winAmount, effectiveMult, winType, siteUrl));
+          broadcastChannel.current?.postMessage({ type: winType, username, amount: winResult.winAmount, multiplier: effectiveMult });
         }
       } else {
         audio.loss();
@@ -148,25 +153,25 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         setNearMiss(true);
       }
 
-      // Bonus mode countdown
+      // Bonus countdown
       if (bonusMode) {
         setBonusSpinsLeft(prev => {
           const next = prev - 1;
           if (next <= 0) {
             setBonusMode(false);
+            setBonusMultiplier(1);
             showToast('Bonus mode ended!', 'info');
           }
           return next;
         });
       }
     }
-  }, [bonusMode, bet, jackpot, username, setBalance, setJackpot, addHistory, addLeaderboardEntry, showToast]);
+  }, [bonusMode, bonusMultiplier, bet, jackpot, username, setBalance, setJackpot, addHistory, addLeaderboardEntry, showToast]);
 
   const handleBonusBuy = useCallback(() => {
     handleSpin(true);
   }, [handleSpin]);
 
-  // Keyboard: spacebar to spin (proper useEffect, not render-time assignment)
   useEffect(() => {
     const handler = (e) => {
       if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
@@ -207,7 +212,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       {bonusMode && (
         <div className="bonus-indicator">
           <Sparkles size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
-          FREE SPINS: {bonusSpinsLeft} remaining ({BONUS_WIN_MULTIPLIER}x multiplier)
+          FREE SPINS: {bonusSpinsLeft}/{BONUS_SPINS} — {bonusMultiplier}x multiplier
         </div>
       )}
 
@@ -221,9 +226,10 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         bonusMode={bonusMode}
       />
 
+      {/* Bonus wheel overlay */}
       <AnimatePresence>
-        {showBonusIntro && (
-          <BonusOverlay onComplete={() => setShowBonusIntro(false)} />
+        {showWheel && (
+          <BonusWheel onResult={handleWheelResult} />
         )}
       </AnimatePresence>
     </div>

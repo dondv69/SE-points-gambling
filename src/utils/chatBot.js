@@ -21,7 +21,7 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   if (type === 'jackpot') {
     msg += ' hitting the JACKPOT!';
   } else if (multiplier) {
-    msg += ` (${multiplier}x multiplier)!`;
+    msg += ` (${multiplier}x)!`;
   }
 
   if (siteUrl) {
@@ -31,9 +31,15 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   return msg;
 }
 
+// Dynamic announce threshold:
+// Small bets (under 100) → only announce 100x+
+// Medium bets (100-999) → announce 10x+
+// Large bets (1000+) → announce 10x+
+// Always announce jackpots and wins over 10,000 points
 export function shouldAnnounce(winAmount, bet, type) {
   if (type === 'jackpot') return true;
-  // Only announce 10x+ multiplier wins
-  if (bet > 0 && winAmount / bet >= 10) return true;
-  return false;
+  if (winAmount >= 10000) return true;
+  const multiplier = bet > 0 ? winAmount / bet : 0;
+  if (bet < 100) return multiplier >= 100;
+  return multiplier >= 10;
 }
