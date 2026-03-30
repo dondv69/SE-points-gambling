@@ -145,13 +145,10 @@ export default function App() {
                     {showDeposit && (
                       <div className="deposit-dropdown">
                         <button className="deposit-close" onClick={() => setShowDeposit(false)} aria-label="Close"><X size={14} /></button>
-                        <p className="deposit-info">Earn <strong>1,000 pts</strong> per sub or gifted sub!</p>
+                        <p className="deposit-info">Subscribe to earn <strong>1,000 pts</strong> instantly!</p>
                         <div className="deposit-links">
                           <a href={`https://www.twitch.tv/subs/${CHANNEL_NAME}`} target="_blank" rel="noopener noreferrer" className="deposit-link deposit-sub">
-                            <Heart size={14} /> Subscribe
-                          </a>
-                          <a href={`https://www.twitch.tv/subs/${CHANNEL_NAME}`} target="_blank" rel="noopener noreferrer" className="deposit-link deposit-gift">
-                            <Gift size={14} /> Gift a Sub
+                            <Heart size={14} /> Subscribe to {CHANNEL_NAME}
                           </a>
                         </div>
                       </div>
