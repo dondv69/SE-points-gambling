@@ -37,8 +37,8 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
   autoSpinRef.current = autoSpin;
 
   const canSpin = !spinning && !showWheel && (bonusMode ? bonusSpinsLeft > 0 : balance >= bet);
-  const spinBase = turbo ? 500 : SPIN_DURATION_BASE;
-  const spinStagger = turbo ? 100 : SPIN_STAGGER;
+  const spinBase = turbo ? 200 : SPIN_DURATION_BASE;
+  const spinStagger = turbo ? 50 : SPIN_STAGGER;
 
   const handleSpin = useCallback(async (isBonusBuy = false) => {
     if (spinning) return;
@@ -199,7 +199,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       setAutoSpin(false);
       return;
     }
-    const delay = turbo ? 200 : 600;
+    const delay = turbo ? 50 : 600;
     const timer = setTimeout(() => {
       if (autoSpinRef.current) handleSpin();
     }, delay);

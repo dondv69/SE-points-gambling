@@ -20,7 +20,7 @@ export const WIN_TABLE = [
   { match: 'three_any',     ids: null,        count: 3, multiplier: 5,    label: '3× Any — 5×' },
   { match: 'two_seven',     ids: ['seven'],   count: 2, multiplier: 4,    label: '2× 7️⃣ — 4×' },
   { match: 'two_diamond',   ids: ['diamond'], count: 2, multiplier: 3,    label: '2× 💎 — 3×' },
-  { match: 'two_any',       ids: null,        count: 2, multiplier: 1.65, label: '2× Any — 1.65×' },
+  { match: 'two_any',       ids: null,        count: 2, multiplier: 1.55, label: '2× Any — 1.55×' },
 ];
 
 // Bet presets
