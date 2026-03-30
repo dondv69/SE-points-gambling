@@ -2141,8 +2141,16 @@ input:focus-visible {
   box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
 }
 
-.gr-big-decided {
-  opacity: 0.7;
+.gr-face-down {
+  background: linear-gradient(135deg, var(--panel), var(--raised));
+  border-color: var(--bezel-strong);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.15);
+}
+
+.gr-big-q {
+  font-family: 'Russo One', sans-serif;
+  font-size: 2.5rem;
+  color: var(--ink-muted);
 }
 
 .gr-big-value {
@@ -2197,6 +2205,26 @@ input:focus-visible {
 .gr-swap-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(124, 58, 237, 0.3);
+}
+
+.gr-double-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-6);
+  border: none;
+  border-radius: var(--r-lg);
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+  background: linear-gradient(135deg, var(--signal-hot), var(--signal-hot-dim));
+  color: #fff;
+}
+
+.gr-double-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--signal-hot-glow);
 }
 
 /* ===== SCRATCH CARD ===== */
