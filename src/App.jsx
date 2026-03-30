@@ -3,7 +3,11 @@ import { Routes, Route } from 'react-router-dom';
 import { User, Disc3, Trophy, History, Gift, Heart, X } from 'lucide-react';
 import UserLogin from './components/UserLogin';
 import AuthCallback from './components/AuthCallback';
+import GameSelector from './components/GameSelector';
 import SlotMachine from './components/SlotMachine';
+import Blackjack from './components/Blackjack';
+import Roulette from './components/Roulette';
+import Plinko from './components/Plinko';
 import TwitchEmbed from './components/TwitchEmbed';
 import Leaderboard from './components/Leaderboard';
 import SpinHistory from './components/SpinHistory';
@@ -26,7 +30,8 @@ export default function App() {
   const [avatar, setAvatar] = useLocalStorage('se_slots_avatar', '');
   const [balance, setBalance] = useState(0);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState('slots');
+  const [activeGame, setActiveGame] = useState('slots');
+  const [tab, setTab] = useState('game'); // 'game' | 'history' | 'leaderboard'
   const [showDeposit, setShowDeposit] = useState(false);
   const [lbRefreshing, setLbRefreshing] = useState(false);
 
@@ -35,7 +40,6 @@ export default function App() {
   const [jackpot, setJackpot] = useState(5000);
   const [toasts, setToasts] = useState([]);
 
-  // Init: check SE connection, fetch global jackpot, start version polling
   useEffect(() => {
     Promise.all([
       getChannelId(),
@@ -43,11 +47,9 @@ export default function App() {
     ])
       .then(() => setReady(true))
       .catch(() => setConfigError('Could not connect. Check server config.'));
-
     startVersionPolling();
   }, []);
 
-  // Refresh leaderboard periodically
   useEffect(() => {
     if (!ready) return;
     const load = () => fetchLeaderboard('top3', 10).then(setLeaderboard).catch(() => {});
@@ -56,7 +58,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [ready]);
 
-  // Refresh jackpot periodically
   useEffect(() => {
     if (!ready) return;
     const interval = setInterval(() => {
@@ -91,12 +92,20 @@ export default function App() {
     setLbRefreshing(false);
   }, []);
 
-  const addHistory = useCallback((symbols, net, type) => {
-    const entry = { id: ++historyId, symbols, net, type, timestamp: Date.now() };
+  const addHistory = useCallback((symbols, net, type, game = 'slots') => {
+    const entry = { id: ++historyId, symbols, net, type, game, timestamp: Date.now() };
     setHistory(prev => [entry, ...prev].slice(0, HISTORY_MAX));
   }, [setHistory]);
 
-  // Config error
+  const handleSelectGame = useCallback((game) => {
+    setActiveGame(game);
+    setTab('game');
+  }, []);
+
+  const sharedGameProps = {
+    balance, setBalance, username, showToast, addHistory,
+  };
+
   if (configError) {
     return (
       <div className="app">
@@ -113,7 +122,6 @@ export default function App() {
     );
   }
 
-  // Loading
   if (!ready) {
     return (
       <div className="app">
@@ -175,39 +183,37 @@ export default function App() {
                 </div>
 
                 <div className="layout-right">
+                  {/* Game selector + tabs */}
                   <div className="tab-bar">
-                    <button
-                      className={`tab-btn ${tab === 'slots' ? 'tab-active' : ''}`}
-                      onClick={() => setTab('slots')}
-                    >
-                      <Disc3 size={14} /> Slots
-                    </button>
+                    <GameSelector activeGame={activeGame} onSelectGame={handleSelectGame} />
+                    <div className="tab-divider" />
                     <button
                       className={`tab-btn ${tab === 'history' ? 'tab-active' : ''}`}
                       onClick={() => setTab('history')}
                     >
-                      <History size={14} /> History
+                      <History size={14} />
                     </button>
                     <button
                       className={`tab-btn ${tab === 'leaderboard' ? 'tab-active' : ''}`}
                       onClick={() => setTab('leaderboard')}
                     >
-                      <Trophy size={14} /> Leaderboard
+                      <Trophy size={14} />
                     </button>
                   </div>
 
                   <div className="tab-content">
-                    {tab === 'slots' && (
+                    {tab === 'game' && (
                       <div className="layout-slots">
-                        <SlotMachine
-                          balance={balance}
-                          setBalance={setBalance}
-                          username={username}
-                          jackpot={jackpot}
-                          setJackpot={setJackpot}
-                          addHistory={addHistory}
-                          showToast={showToast}
-                        />
+                        {activeGame === 'slots' && (
+                          <SlotMachine
+                            {...sharedGameProps}
+                            jackpot={jackpot}
+                            setJackpot={setJackpot}
+                          />
+                        )}
+                        {activeGame === 'blackjack' && <Blackjack {...sharedGameProps} />}
+                        {activeGame === 'roulette' && <Roulette {...sharedGameProps} />}
+                        {activeGame === 'plinko' && <Plinko {...sharedGameProps} />}
                       </div>
                     )}
                     {tab === 'history' && (

@@ -359,9 +359,56 @@ input:focus-visible {
 /* Tab bar */
 .tab-bar {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--bezel);
   background: var(--machine);
   flex-shrink: 0;
+}
+
+/* Game selector within tab bar */
+.game-selector {
+  display: flex;
+  flex: 1;
+}
+
+.game-selector-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-tertiary);
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+  white-space: nowrap;
+}
+
+.game-selector-btn:hover {
+  color: var(--ink-secondary);
+  background: rgba(124, 58, 237, 0.03);
+}
+
+.game-active {
+  color: var(--phosphor);
+  border-bottom-color: var(--phosphor);
+}
+
+.game-selector-label {
+  display: inline;
+}
+
+.tab-divider {
+  width: 1px;
+  background: var(--bezel);
+  margin: var(--sp-2) 0;
 }
 
 .tab-btn {
@@ -1413,9 +1460,18 @@ input:focus-visible {
   border-left: 2px solid transparent;
 }
 
+.sh-game-icon {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
 .sh-symbols {
-  font-size: 0.95rem;
-  letter-spacing: 2px;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sh-positive {

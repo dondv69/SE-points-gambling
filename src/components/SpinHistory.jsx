@@ -1,13 +1,20 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { History } from 'lucide-react';
 
+const GAME_LABELS = {
+  slots: '🎰',
+  blackjack: '🃏',
+  roulette: '🎡',
+  plinko: '📍',
+};
+
 export default function SpinHistory({ history }) {
   return (
     <div className="spin-history">
-      <h3><History size={16} /> Spin History</h3>
+      <h3><History size={16} /> History</h3>
 
       {history.length === 0 ? (
-        <div className="sh-empty">No spins yet</div>
+        <div className="sh-empty">No bets yet</div>
       ) : (
         <div className="sh-list">
           <AnimatePresence initial={false}>
@@ -20,6 +27,7 @@ export default function SpinHistory({ history }) {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
               >
+                <span className="sh-game-icon">{GAME_LABELS[entry.game] || '🎰'}</span>
                 <span className="sh-symbols">
                   {entry.symbols.map(s => s.emoji).join(' ')}
                 </span>
