@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { audio } from '../utils/audio';
 import { Sparkles, RefreshCw, Check, Zap } from 'lucide-react';
 
-// 3 rounds blind keep/swap + optional double-or-nothing
-// Card is FACE DOWN when choosing. You don't see the value until after.
 const POOL = [1, 2, 3, 4, 5, 5, 6, 8, 10];
 const ROUNDS = 3;
 
@@ -12,71 +10,94 @@ function pickRandom() {
   return POOL[Math.floor(Math.random() * POOL.length)];
 }
 
-// Phases: picking (3 rounds) → doubleOrNothing → done
 export default function GoldenRain({ bet, onComplete }) {
   const [round, setRound] = useState(0);
   const [hiddenCard, setHiddenCard] = useState(() => pickRandom());
-  const [revealed, setRevealed] = useState(false); // card flipped after choice
+  const [cardState, setCardState] = useState('facedown'); // facedown | swapping | revealed
   const [swapped, setSwapped] = useState(false);
   const [oldCard, setOldCard] = useState(null);
   const [keptCards, setKeptCards] = useState([]);
-  const [phase, setPhase] = useState('picking'); // picking | doubleOrNothing | done
-  const [doubleWon, setDoubleWon] = useState(null); // null | true | false
+  const [phase, setPhase] = useState('picking'); // picking | doubleOrNothing | flipping | done
+  const [doubleWon, setDoubleWon] = useState(null);
+  const [coinSide, setCoinSide] = useState(null); // for coin animation
+  const busy = useRef(false);
 
   const total = keptCards.reduce((s, v) => s + v, 0);
   const finalTotal = phase === 'done' && doubleWon === true ? total * 2 : (phase === 'done' && doubleWon === false ? 0 : total);
-  const payout = Math.floor(bet * finalTotal);
 
-  const advanceRound = useCallback((value) => {
-    const newKept = [...keptCards, value];
-    setKeptCards(newKept);
-    setRevealed(true);
-
-    if (value >= 8) audio.win(value);
-    else audio.cardDeal();
-
-    // After short delay, go to next round or double-or-nothing
+  const goNextRound = useCallback((newKept) => {
     setTimeout(() => {
       if (newKept.length >= ROUNDS) {
         setPhase('doubleOrNothing');
       } else {
         setRound(prev => prev + 1);
         setHiddenCard(pickRandom());
-        setRevealed(false);
+        setCardState('facedown');
         setSwapped(false);
         setOldCard(null);
       }
-    }, 1500);
-  }, [keptCards]);
+      busy.current = false;
+    }, 1800);
+  }, []);
 
   const handleKeep = useCallback(() => {
-    if (revealed || phase !== 'picking') return;
-    advanceRound(hiddenCard);
-  }, [revealed, phase, hiddenCard, advanceRound]);
+    if (cardState !== 'facedown' || phase !== 'picking' || busy.current) return;
+    busy.current = true;
+
+    // Flip to reveal
+    setCardState('revealed');
+    setSwapped(false);
+    audio.cardDeal();
+    if (hiddenCard >= 8) audio.win(hiddenCard);
+
+    const newKept = [...keptCards, hiddenCard];
+    setKeptCards(newKept);
+    goNextRound(newKept);
+  }, [cardState, phase, hiddenCard, keptCards, goNextRound]);
 
   const handleSwap = useCallback(() => {
-    if (revealed || phase !== 'picking') return;
+    if (cardState !== 'facedown' || phase !== 'picking' || busy.current) return;
+    busy.current = true;
+
+    // Step 1: animate card sliding away
     const discarded = hiddenCard;
-    const newCard = pickRandom();
     setOldCard(discarded);
-    setHiddenCard(newCard);
     setSwapped(true);
+    setCardState('swapping');
     audio.cardFlip();
-    advanceRound(newCard);
-  }, [revealed, phase, hiddenCard, advanceRound]);
+
+    // Step 2: after swap animation, show new card
+    setTimeout(() => {
+      const newCard = pickRandom();
+      setHiddenCard(newCard);
+      setCardState('revealed');
+      audio.cardDeal();
+      if (newCard >= 8) audio.win(newCard);
+
+      const newKept = [...keptCards, newCard];
+      setKeptCards(newKept);
+      goNextRound(newKept);
+    }, 600);
+  }, [cardState, phase, hiddenCard, keptCards, goNextRound]);
 
   const handleDouble = useCallback(() => {
     if (phase !== 'doubleOrNothing') return;
-    const win = Math.random() < 0.5;
-    setDoubleWon(win);
-    setPhase('done');
-    if (win) {
-      audio.bonus();
-    } else {
-      audio.loss();
-    }
-    const finalMult = win ? total * 2 : 0;
-    setTimeout(() => onComplete(finalMult), 2500);
+    setPhase('flipping');
+    setCoinSide(null);
+
+    // Animate coin flip for 1.5s then reveal
+    setTimeout(() => {
+      const win = Math.random() < 0.5;
+      setCoinSide(win ? 'win' : 'lose');
+      setDoubleWon(win);
+
+      setTimeout(() => {
+        setPhase('done');
+        if (win) audio.bonus(); else audio.loss();
+        const finalMult = win ? total * 2 : 0;
+        setTimeout(() => onComplete(finalMult), 2000);
+      }, 1000);
+    }, 1500);
   }, [phase, total, onComplete]);
 
   const handleCollect = useCallback(() => {
@@ -87,6 +108,9 @@ export default function GoldenRain({ bet, onComplete }) {
     setTimeout(() => onComplete(total), 2000);
   }, [phase, total, onComplete]);
 
+  const displayTotal = phase === 'done' ? finalTotal : total;
+  const displayPayout = Math.floor(bet * displayTotal);
+
   return (
     <div className="vh-overlay">
       <div className="vh-content">
@@ -95,21 +119,20 @@ export default function GoldenRain({ bet, onComplete }) {
         </h2>
         <p className="vh-subtitle">
           {phase === 'picking' && `Round ${round + 1} of ${ROUNDS} — Keep or Swap?`}
-          {phase === 'doubleOrNothing' && 'Double or Nothing? Or collect your winnings.'}
+          {phase === 'doubleOrNothing' && 'Double or collect?'}
+          {phase === 'flipping' && 'Flipping...'}
           {phase === 'done' && (doubleWon === true ? 'DOUBLED!' : doubleWon === false ? 'Busted...' : 'Collecting!')}
         </p>
 
-        {/* Total */}
         <div className="vh-total">
           <span className="vh-total-label">Total</span>
-          <motion.span className="vh-total-amount" key={phase === 'done' ? finalTotal : total} initial={{ scale: 1.3 }} animate={{ scale: 1 }}>
-            {phase === 'done' ? finalTotal : total}x
+          <motion.span className="vh-total-amount" key={displayTotal} initial={{ scale: 1.3 }} animate={{ scale: 1 }}>
+            {displayTotal}x
           </motion.span>
-          <span className="vh-total-payout">= {(phase === 'done' ? Math.floor(bet * finalTotal) : Math.floor(bet * total)).toLocaleString()} pts</span>
+          <span className="vh-total-payout">= {displayPayout.toLocaleString()} pts</span>
         </div>
 
-        {/* Previous cards */}
-        {keptCards.length > 0 && (
+        {keptCards.length > 0 && phase === 'picking' && (
           <div className="gr-history">
             {keptCards.map((val, i) => (
               <div key={i} className="gr-history-card">+{val}x</div>
@@ -117,34 +140,47 @@ export default function GoldenRain({ bet, onComplete }) {
           </div>
         )}
 
-        {/* Card area — picking phase */}
+        {/* Card area */}
         {phase === 'picking' && (
           <div className="gr-current">
             <AnimatePresence mode="wait">
-              {!revealed ? (
+              {cardState === 'facedown' && (
                 <motion.div
-                  key={`hidden-${round}`}
+                  key={`facedown-${round}`}
                   className="gr-big-card gr-face-down"
-                  initial={{ scale: 0.8, rotateY: 0 }}
-                  animate={{ scale: 1, rotateY: 0 }}
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  exit={{ x: -200, opacity: 0, rotate: -15 }}
+                  transition={{ duration: 0.3 }}
                 >
                   <span className="gr-big-q">?</span>
                 </motion.div>
-              ) : (
+              )}
+              {cardState === 'swapping' && (
                 <motion.div
-                  key={`revealed-${round}`}
+                  key={`swapping-${round}`}
+                  className="gr-big-card gr-face-down"
+                  initial={{ x: 0, opacity: 1 }}
+                  animate={{ x: -200, opacity: 0, rotate: -15 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <span className="gr-big-q">?</span>
+                </motion.div>
+              )}
+              {cardState === 'revealed' && (
+                <motion.div
+                  key={`revealed-${round}-${hiddenCard}`}
                   className="gr-big-card"
-                  initial={{ rotateY: 90 }}
-                  animate={{ rotateY: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  initial={swapped ? { x: 200, opacity: 0, rotate: 15 } : { rotateY: 90 }}
+                  animate={swapped ? { x: 0, opacity: 1, rotate: 0 } : { rotateY: 0 }}
+                  transition={{ type: 'spring', stiffness: 250, damping: 20 }}
                 >
                   <span className="gr-big-value">+{hiddenCard}x</span>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Swap info */}
-            {revealed && swapped && oldCard !== null && (
+            {cardState === 'revealed' && swapped && oldCard !== null && (
               <motion.div className="gr-swapped-info" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 Old card was: <strong>{oldCard}x</strong>
                 {hiddenCard > oldCard && <span className="gr-better"> — Better swap!</span>}
@@ -152,7 +188,7 @@ export default function GoldenRain({ bet, onComplete }) {
                 {hiddenCard === oldCard && <span className="gr-same"> — Same!</span>}
               </motion.div>
             )}
-            {revealed && !swapped && (
+            {cardState === 'revealed' && !swapped && (
               <motion.div className="gr-swapped-info" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 Kept!
               </motion.div>
@@ -160,8 +196,26 @@ export default function GoldenRain({ bet, onComplete }) {
           </div>
         )}
 
-        {/* Keep / Swap buttons */}
-        {phase === 'picking' && !revealed && (
+        {/* Coin flip animation */}
+        {(phase === 'flipping' || (phase === 'done' && doubleWon !== null)) && (
+          <div className="gr-coin-area">
+            <motion.div
+              className={`gr-coin ${coinSide === 'win' ? 'gr-coin-win' : coinSide === 'lose' ? 'gr-coin-lose' : ''}`}
+              animate={phase === 'flipping' && coinSide === null ? {
+                rotateX: [0, 180, 360, 540, 720, 900, 1080],
+                y: [0, -40, 0, -30, 0, -20, 0],
+              } : {}}
+              transition={{ duration: 1.5, ease: 'easeOut' }}
+            >
+              {coinSide === 'win' && <span className="gr-coin-text">2×</span>}
+              {coinSide === 'lose' && <span className="gr-coin-text">0</span>}
+              {coinSide === null && <span className="gr-coin-text">?</span>}
+            </motion.div>
+          </div>
+        )}
+
+        {/* Keep/Swap buttons */}
+        {phase === 'picking' && cardState === 'facedown' && (
           <div className="gr-actions">
             <button className="gr-keep-btn" onClick={handleKeep}>
               <Check size={18} /> KEEP
@@ -179,28 +233,28 @@ export default function GoldenRain({ bet, onComplete }) {
               <Check size={18} /> COLLECT {total}x
             </button>
             <button className="gr-double-btn" onClick={handleDouble}>
-              <Zap size={18} /> DOUBLE ({total * 2}x or 0)
+              <Zap size={18} /> DOUBLE
             </button>
           </div>
         )}
 
-        {/* Done result */}
         {phase === 'done' && (
           <motion.div
             className={`vh-result ${finalTotal > 0 ? 'vh-result-clear' : 'vh-result-trap'}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            {doubleWon === true && `DOUBLED! ${total}x → ${finalTotal}x = ${payout.toLocaleString()} pts!`}
-            {doubleWon === false && `Busted! Lost it all.`}
-            {doubleWon === null && `${finalTotal}x = ${payout.toLocaleString()} pts!`}
+            {doubleWon === true && `DOUBLED! ${total}x → ${finalTotal}x = ${displayPayout.toLocaleString()} pts!`}
+            {doubleWon === false && 'Busted! Lost it all.'}
+            {doubleWon === null && `${finalTotal}x = ${displayPayout.toLocaleString()} pts!`}
           </motion.div>
         )}
 
         <p className="vh-hint">
           {phase === 'done' ? 'Returning to slots...' :
-           phase === 'doubleOrNothing' ? '50/50 chance to double your total or lose everything!' :
-           `Card is face down. Swap draws a new random card.`}
+           phase === 'doubleOrNothing' ? '50/50 — double your total or lose everything!' :
+           phase === 'flipping' ? '' :
+           'Card is face down. Swap slides it away and draws a new one.'}
         </p>
       </div>
     </div>

@@ -2227,6 +2227,41 @@ input:focus-visible {
   box-shadow: 0 6px 20px var(--signal-hot-glow);
 }
 
+/* Coin flip */
+.gr-coin-area {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-4) 0;
+}
+
+.gr-coin {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--discharge), var(--discharge-dim));
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.3);
+}
+
+.gr-coin-win {
+  background: linear-gradient(135deg, var(--signal-go), #059669);
+  box-shadow: 0 0 30px rgba(52, 211, 153, 0.4);
+}
+
+.gr-coin-lose {
+  background: linear-gradient(135deg, var(--signal-hot), var(--signal-hot-dim));
+  box-shadow: 0 0 30px var(--signal-hot-glow);
+}
+
+.gr-coin-text {
+  font-family: 'Russo One', sans-serif;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
 /* ===== SCRATCH CARD ===== */
 .sc-grid {
   display: grid;
