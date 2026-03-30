@@ -25,8 +25,8 @@ export const WIN_TABLE = [
 
 // Bet presets
 export const BET_PRESETS = [100, 500, 1000, 5000];
-export const MAX_BET_PERCENT = 0.10;
-export const MAX_BET_CAP = 10000;
+export const MAX_BET_PERCENT = 0.25;
+export const MAX_BET_CAP = 50000;
 
 // Bonus
 export const BONUS_BUY_MULTIPLIER = 10;

@@ -132,7 +132,7 @@ export default function App() {
                   <TwitchEmbed channel={CHANNEL_NAME} />
                 </div>
 
-                <div className="layout-bottom">
+                <div className="layout-right">
                   <div className="layout-slots">
                     <SlotMachine
                       balance={balance}

@@ -224,48 +224,51 @@ input:focus-visible {
   background: var(--raised);
 }
 
-/* ===== LAYOUT ===== */
+/* ===== LAYOUT: stream left, slots+sidebar right ===== */
 .app-layout {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  overflow: hidden;
 }
 
 .layout-stream {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: #000;
+  display: flex;
 }
 
-.layout-bottom {
+.layout-right {
   display: flex;
-  flex: 1;
-  min-height: 500px;
+  flex-direction: column;
+  width: 440px;
+  min-width: 440px;
+  border-left: 1px solid var(--bezel);
+  overflow-y: auto;
 }
 
 .layout-slots {
-  flex: 1;
   display: flex;
   justify-content: center;
-  padding: var(--sp-8);
-  /* Subtle radial glow behind the machine — the arcade floor light */
+  padding: var(--sp-4);
   background: radial-gradient(ellipse at 50% 30%, rgba(124, 58, 237, 0.04) 0%, transparent 60%);
 }
 
 .layout-sidebar {
-  width: 300px;
-  min-width: 300px;
-  border-left: 1px solid var(--bezel);
+  border-top: 1px solid var(--bezel);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
   background: var(--machine);
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* ===== TWITCH EMBED ===== */
 .twitch-embed-wrapper {
   width: 100%;
-  aspect-ratio: 16 / 7;
-  max-height: 400px;
+  height: 100%;
+  min-height: 300px;
 }
 
 .twitch-embed-container {
@@ -408,9 +411,9 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-5);
+  gap: var(--sp-3);
   width: 100%;
-  max-width: 520px;
+  max-width: 420px;
 }
 
 /* --- Jackpot: the prize counter at the top of the cabinet --- */
@@ -477,8 +480,8 @@ input:focus-visible {
 }
 
 .reel-container {
-  width: 120px;
-  height: 400px;
+  width: 100px;
+  height: 260px;
   overflow: hidden;
   position: relative;
   border-radius: var(--r-md);
@@ -517,7 +520,7 @@ input:focus-visible {
 }
 
 .symbol-emoji {
-  font-size: 2.75rem;
+  font-size: 2.2rem;
   line-height: 1;
 }
 
@@ -536,7 +539,7 @@ input:focus-visible {
   top: 50%;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 72px;
   transform: translateY(-50%);
   border-top: 1px solid var(--current);
   border-bottom: 1px solid var(--current);
@@ -552,6 +555,27 @@ input:focus-visible {
   box-shadow:
     inset 0 1px 0 0 rgba(6, 182, 212, 0.15),
     inset 0 -1px 0 0 rgba(6, 182, 212, 0.15);
+}
+
+/* Reel fade masks — top and bottom edges */
+.reel-fade-top,
+.reel-fade-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.reel-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--void), transparent);
+}
+
+.reel-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--void), transparent);
 }
 
 /* Bonus indicator */
@@ -728,6 +752,11 @@ input:focus-visible {
 
 .spin-btn:disabled::after {
   animation: none;
+}
+
+.spin-btn-bonus {
+  background: linear-gradient(135deg, var(--discharge-dim), var(--discharge));
+  color: #000;
 }
 
 .bonus-buy-btn {
@@ -1140,15 +1169,24 @@ input:focus-visible {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
-  .layout-bottom {
+  .app-layout {
     flex-direction: column;
   }
 
-  .layout-sidebar {
+  .layout-stream {
+    min-height: 300px;
+    max-height: 40vh;
+  }
+
+  .layout-right {
     width: 100%;
     min-width: auto;
     border-left: none;
     border-top: 1px solid var(--bezel);
+    flex-direction: column;
+  }
+
+  .layout-sidebar {
     flex-direction: row;
   }
 
@@ -1158,12 +1196,12 @@ input:focus-visible {
   }
 
   .reel-container {
-    width: 100px;
-    height: 340px;
+    width: 90px;
+    height: 230px;
   }
 
   .symbol-emoji {
-    font-size: 2.2rem;
+    font-size: 2rem;
   }
 }
 
@@ -1173,7 +1211,7 @@ input:focus-visible {
   }
 
   .layout-slots {
-    padding: var(--sp-4);
+    padding: var(--sp-3);
   }
 
   .bet-row {
@@ -1191,12 +1229,12 @@ input:focus-visible {
   }
 
   .reel-container {
-    width: 85px;
-    height: 300px;
+    width: 80px;
+    height: 210px;
   }
 
   .symbol-emoji {
-    font-size: 1.9rem;
+    font-size: 1.75rem;
   }
 
   .spin-btn {
