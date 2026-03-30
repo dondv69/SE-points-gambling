@@ -1,45 +1,36 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { audio } from '../utils/audio';
 import { Lock, Sparkles } from 'lucide-react';
 
-// Two options: Free Spins (multiplier wheel → 3 spins) or Vault Heist
-// 50/50 chance, but visually a 4-slice wheel for drama
 const SLICES = [
-  { id: 'freespins', label: 'FREE SPINS', color: '#7C3AED', icon: '🎰' },
-  { id: 'vault',     label: 'VAULT HEIST', color: '#FBBF24', icon: '🔓' },
-  { id: 'freespins', label: 'FREE SPINS', color: '#6525CC', icon: '🎰' },
-  { id: 'vault',     label: 'VAULT HEIST', color: '#D97706', icon: '🔓' },
+  { id: 'freespins', label: 'FREE SPINS', color: '#7C3AED' },
+  { id: 'vault',     label: 'VAULT HEIST', color: '#FBBF24' },
+  { id: 'freespins', label: 'FREE SPINS', color: '#6525CC' },
+  { id: 'vault',     label: 'VAULT HEIST', color: '#D97706' },
 ];
 
-const SLICE_ANGLE = 360 / SLICES.length; // 90 degrees each
+const SLICE_ANGLE = 360 / SLICES.length;
 
 export default function BonusPicker({ onResult }) {
   const [spinning, setSpinning] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
 
   const handleSpin = useCallback(async () => {
     if (spinning || result) return;
     await audio.ensure();
 
-    // 50/50 pick
     const chosen = Math.random() < 0.5 ? 'freespins' : 'vault';
     setSpinning(true);
 
-    // Find a matching slice index
     const sliceIdx = SLICES.findIndex(s => s.id === chosen);
     const fullSpins = 4 + Math.floor(Math.random() * 3);
     const sliceCenter = sliceIdx * SLICE_ANGLE + SLICE_ANGLE / 2;
     const jitter = (Math.random() - 0.5) * (SLICE_ANGLE * 0.5);
     const targetAngle = fullSpins * 360 + (360 - sliceCenter) + jitter;
 
-    // Animate via CSS transition (set rotation state)
-    const wheel = document.getElementById('bonus-picker-wheel');
-    if (wheel) {
-      wheel.style.transition = 'transform 3.5s cubic-bezier(0.15, 0.85, 0.3, 1)';
-      wheel.style.transform = `rotate(${targetAngle}deg)`;
-    }
-
+    setRotation(targetAngle);
     audio.bonus();
 
     setTimeout(() => {
@@ -60,40 +51,69 @@ export default function BonusPicker({ onResult }) {
 
         <div className="bp-wheel-wrapper">
           <div className="bp-pointer">▼</div>
-          <div className="bp-wheel" id="bonus-picker-wheel">
-            {SLICES.map((slice, i) => {
-              const startAngle = i * SLICE_ANGLE;
-              const endAngle = startAngle + SLICE_ANGLE;
-              const midAngle = (startAngle + endAngle) / 2 - 90;
-              const midRad = midAngle * (Math.PI / 180);
-              const textX = 50 + 30 * Math.cos(midRad);
-              const textY = 50 + 30 * Math.sin(midRad);
 
-              return (
-                <div
-                  key={i}
-                  className="bp-slice"
-                  style={{
-                    background: slice.color,
-                    clipPath: `polygon(50% 50%, ${50 + 50 * Math.cos((startAngle - 90) * Math.PI / 180)}% ${50 + 50 * Math.sin((startAngle - 90) * Math.PI / 180)}%, ${50 + 50 * Math.cos((endAngle - 90) * Math.PI / 180)}% ${50 + 50 * Math.sin((endAngle - 90) * Math.PI / 180)}%)`,
-                  }}
-                >
-                  <span
-                    className="bp-slice-label"
-                    style={{
-                      position: 'absolute',
-                      left: `${textX}%`,
-                      top: `${textY}%`,
-                      transform: `translate(-50%, -50%) rotate(${midAngle + 90}deg)`,
-                    }}
-                  >
-                    {slice.icon}
-                  </span>
-                </div>
-              );
-            })}
-            <div className="bp-center" />
-          </div>
+          <motion.div
+            className="bp-wheel"
+            animate={{ rotate: rotation }}
+            transition={{ duration: 3.5, ease: [0.15, 0.85, 0.3, 1] }}
+          >
+            <svg viewBox="0 0 200 200" className="bp-wheel-svg">
+              {SLICES.map((slice, i) => {
+                const startAngle = i * SLICE_ANGLE;
+                const endAngle = startAngle + SLICE_ANGLE;
+                const startRad = (startAngle - 90) * (Math.PI / 180);
+                const endRad = (endAngle - 90) * (Math.PI / 180);
+                const x1 = 100 + 98 * Math.cos(startRad);
+                const y1 = 100 + 98 * Math.sin(startRad);
+                const x2 = 100 + 98 * Math.cos(endRad);
+                const y2 = 100 + 98 * Math.sin(endRad);
+                const largeArc = SLICE_ANGLE > 180 ? 1 : 0;
+                const midRad = ((startAngle + endAngle) / 2 - 90) * (Math.PI / 180);
+                const textX = 100 + 58 * Math.cos(midRad);
+                const textY = 100 + 58 * Math.sin(midRad);
+                const textRotation = (startAngle + endAngle) / 2;
+                const iconX = 100 + 72 * Math.cos(midRad);
+                const iconY = 100 + 72 * Math.sin(midRad);
+
+                return (
+                  <g key={i}>
+                    <path
+                      d={`M100,100 L${x1},${y1} A98,98 0 ${largeArc},1 ${x2},${y2} Z`}
+                      fill={slice.color}
+                      stroke="rgba(0,0,0,0.2)"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={textX}
+                      y={textY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      transform={`rotate(${textRotation}, ${textX}, ${textY})`}
+                      fill="#fff"
+                      fontFamily="'Russo One', sans-serif"
+                      fontSize="9"
+                      fontWeight="bold"
+                    >
+                      {slice.label}
+                    </text>
+                    <text
+                      x={iconX}
+                      y={iconY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="18"
+                    >
+                      {slice.id === 'vault' ? '🔓' : '🎰'}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle cx="100" cy="100" r="20" fill="#0B0B1A" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+              <text x="100" y="100" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="'Russo One', sans-serif" fontSize="10">
+                BONUS
+              </text>
+            </svg>
+          </motion.div>
         </div>
 
         {!spinning && !result && (

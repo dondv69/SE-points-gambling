@@ -1939,34 +1939,12 @@ input:focus-visible {
 .bp-wheel {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  position: relative;
-  overflow: hidden;
-  border: 3px solid rgba(255,255,255,0.15);
-  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
 }
 
-.bp-slice {
-  position: absolute;
-  inset: 0;
-}
-
-.bp-slice-label {
-  font-size: 1.6rem;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
-}
-
-.bp-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--void);
-  border: 2px solid rgba(255,255,255,0.2);
-  z-index: 5;
+.bp-wheel-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 20px rgba(124, 58, 237, 0.3));
 }
 
 .bp-result {
