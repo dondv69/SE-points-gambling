@@ -14,7 +14,7 @@ import { Trophy, Sparkles } from 'lucide-react';
 export default function SlotMachine({ balance, setBalance, username, jackpot, setJackpot, addHistory, addLeaderboardEntry, showToast }) {
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState([null, null, null]);
-  const [bet, setBet] = useState(100);
+  const [bet, setBet] = useState(10);
   const [lastWin, setLastWin] = useState(null);
   const [bonusMode, setBonusMode] = useState(false);
   const [bonusSpinsLeft, setBonusSpinsLeft] = useState(0);

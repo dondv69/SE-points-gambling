@@ -1,11 +1,23 @@
+import { useState } from 'react';
 import { Disc3, Zap } from 'lucide-react';
-import { BET_PRESETS, MAX_BET_PERCENT, MAX_BET_CAP, BONUS_BUY_MULTIPLIER } from '../utils/constants';
+import { BET_PRESETS, MIN_BET, BONUS_BUY_MULTIPLIER } from '../utils/constants';
 
 export default function BetControls({ bet, setBet, balance, spinning, onSpin, onBonusBuy, bonusMode }) {
-  const maxBet = Math.max(
-    BET_PRESETS[0],
-    Math.min(Math.floor(balance * MAX_BET_PERCENT), MAX_BET_CAP)
-  );
+  const [customBet, setCustomBet] = useState('');
+
+  const handleCustomBet = (e) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setCustomBet(val);
+    const num = parseInt(val, 10);
+    if (num >= MIN_BET) {
+      setBet(num);
+    }
+  };
+
+  const handlePreset = (amount) => {
+    setBet(amount);
+    setCustomBet('');
+  };
 
   return (
     <div className="bet-controls">
@@ -16,21 +28,29 @@ export default function BetControls({ bet, setBet, balance, spinning, onSpin, on
             {BET_PRESETS.map(amount => (
               <button
                 key={amount}
-                className={`bet-btn ${bet === amount ? 'active' : ''}`}
-                onClick={() => setBet(amount)}
+                className={`bet-btn ${bet === amount && !customBet ? 'active' : ''}`}
+                onClick={() => handlePreset(amount)}
                 disabled={spinning || amount > balance}
               >
                 {amount.toLocaleString()}
               </button>
             ))}
-            <button
-              className={`bet-btn ${bet === maxBet ? 'active' : ''}`}
-              onClick={() => setBet(maxBet)}
-              disabled={spinning || balance <= 0}
-            >
-              MAX
-            </button>
           </div>
+        </div>
+      )}
+
+      {!bonusMode && (
+        <div className="bet-row">
+          <span className="bet-label">Custom:</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            className="bet-custom-input"
+            placeholder={`${bet.toLocaleString()}`}
+            value={customBet}
+            onChange={handleCustomBet}
+            disabled={spinning}
+          />
           <div className="balance-display">
             <span className="balance-label">Bal</span>
             <span className="balance-amount">{balance.toLocaleString()}</span>
@@ -53,12 +73,12 @@ export default function BetControls({ bet, setBet, balance, spinning, onSpin, on
         <button
           className={`spin-btn ${bonusMode ? 'spin-btn-bonus' : ''}`}
           onClick={onSpin}
-          disabled={spinning || (!bonusMode && balance < bet)}
+          disabled={spinning || (!bonusMode && (balance < bet || bet < MIN_BET))}
         >
           {spinning ? <span className="spinner" /> : bonusMode ? (
             <><Disc3 size={22} /> FREE SPIN</>
           ) : (
-            <><Disc3 size={22} /> SPIN</>
+            <><Disc3 size={22} /> SPIN {bet.toLocaleString()}</>
           )}
         </button>
 

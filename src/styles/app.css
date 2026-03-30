@@ -652,6 +652,33 @@ input:focus-visible {
   cursor: not-allowed;
 }
 
+.bet-custom-input {
+  background: var(--inset);
+  border: 1px solid var(--bezel);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-family: 'Chakra Petch', sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  width: 100px;
+  outline: none;
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+
+.bet-custom-input:focus {
+  border-color: var(--phosphor);
+}
+
+.bet-custom-input::placeholder {
+  color: var(--ink-muted);
+}
+
+.bet-custom-input:disabled {
+  opacity: 0.4;
+}
+
 .balance-display {
   display: flex;
   align-items: center;

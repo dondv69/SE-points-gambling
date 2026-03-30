@@ -33,8 +33,7 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
 
 export function shouldAnnounce(winAmount, bet, type) {
   if (type === 'jackpot') return true;
-  if (type === 'bonus') return true;
+  // Only announce 10x+ multiplier wins
   if (bet > 0 && winAmount / bet >= 10) return true;
-  if (winAmount >= 5000) return true;
   return false;
 }

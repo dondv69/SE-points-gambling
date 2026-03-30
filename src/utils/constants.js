@@ -11,22 +11,21 @@ export const SYMBOLS = [
 
 export const BONUS_SYMBOL = { id: 'bonus', emoji: '🃏', weight: 0, label: 'Bonus' };
 
-// Win multipliers
+// Win multipliers — tuned for 99% RTP
 export const WIN_TABLE = [
   { match: 'three_seven',   ids: ['seven'],   count: 3, multiplier: 'jackpot', label: '3× 7️⃣ — JACKPOT' },
-  { match: 'three_diamond', ids: ['diamond'], count: 3, multiplier: 25, label: '3× 💎 — 25×' },
-  { match: 'three_bell',    ids: ['bell'],    count: 3, multiplier: 10, label: '3× 🔔 — 10×' },
-  { match: 'three_cherry',  ids: ['cherry'],  count: 3, multiplier: 5,  label: '3× 🍒 — 5×' },
-  { match: 'three_any',     ids: null,        count: 3, multiplier: 3,  label: '3× Any — 3×' },
-  { match: 'two_seven',     ids: ['seven'],   count: 2, multiplier: 2,  label: '2× 7️⃣ — 2×' },
-  { match: 'two_diamond',   ids: ['diamond'], count: 2, multiplier: 1.5, label: '2× 💎 — 1.5×' },
-  { match: 'two_any',       ids: null,        count: 2, multiplier: 1.2, label: '2× Any — 1.2×' },
+  { match: 'three_diamond', ids: ['diamond'], count: 3, multiplier: 40,   label: '3× 💎 — 40×' },
+  { match: 'three_bell',    ids: ['bell'],    count: 3, multiplier: 15,   label: '3× 🔔 — 15×' },
+  { match: 'three_cherry',  ids: ['cherry'],  count: 3, multiplier: 8,    label: '3× 🍒 — 8×' },
+  { match: 'three_any',     ids: null,        count: 3, multiplier: 5,    label: '3× Any — 5×' },
+  { match: 'two_seven',     ids: ['seven'],   count: 2, multiplier: 4,    label: '2× 7️⃣ — 4×' },
+  { match: 'two_diamond',   ids: ['diamond'], count: 2, multiplier: 3,    label: '2× 💎 — 3×' },
+  { match: 'two_any',       ids: null,        count: 2, multiplier: 1.65, label: '2× Any — 1.65×' },
 ];
 
 // Bet presets
-export const BET_PRESETS = [100, 500, 1000, 5000];
-export const MAX_BET_PERCENT = 0.25;
-export const MAX_BET_CAP = 50000;
+export const BET_PRESETS = [1, 10, 100, 1000, 10000];
+export const MIN_BET = 1;
 
 // Bonus
 export const BONUS_BUY_MULTIPLIER = 10;
