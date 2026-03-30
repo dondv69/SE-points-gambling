@@ -1,33 +1,26 @@
 import { getDb, ensureTables } from './db.js';
 
 const JACKPOT_SEED = 5000;
-const GROWTH_PER_MINUTE = 10; // 10 pts per minute passively
+const GROWTH_PER_MINUTE = 10;
 
 async function ensureJackpotTable() {
   const db = getDb();
+  // Use literal SQL for DDL — no parameterized values in DEFAULT
   await db`
     CREATE TABLE IF NOT EXISTS jackpot (
       id INT PRIMARY KEY DEFAULT 1,
-      amount BIGINT NOT NULL DEFAULT ${JACKPOT_SEED},
+      amount BIGINT NOT NULL DEFAULT 5000,
       last_won_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_growth_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
-  await db`
-    INSERT INTO jackpot (id, amount, last_won_at, last_growth_at)
-    VALUES (1, ${JACKPOT_SEED}, NOW(), NOW())
-    ON CONFLICT (id) DO NOTHING
-  `;
-  // Add columns if they don't exist (safe migration)
-  await db`
-    ALTER TABLE jackpot ADD COLUMN IF NOT EXISTS last_won_at TIMESTAMPTZ DEFAULT NOW()
-  `;
-  await db`
-    ALTER TABLE jackpot ADD COLUMN IF NOT EXISTS last_growth_at TIMESTAMPTZ DEFAULT NOW()
-  `;
+  // Seed row if empty
+  const rows = await db`SELECT id FROM jackpot WHERE id = 1`;
+  if (rows.length === 0) {
+    await db`INSERT INTO jackpot (id, amount) VALUES (1, 5000)`;
+  }
 }
 
-// Apply passive time-based growth since last check
 async function applyTimeGrowth(db) {
   const rows = await db`SELECT amount, last_growth_at FROM jackpot WHERE id = 1`;
   if (!rows[0]) return;
@@ -59,7 +52,7 @@ export default async function handler(req, res) {
       const rows = await db`SELECT amount, last_won_at FROM jackpot WHERE id = 1`;
       const row = rows[0];
       return res.json({
-        jackpot: row?.amount ?? JACKPOT_SEED,
+        jackpot: Number(row?.amount ?? JACKPOT_SEED),
         lastWonAt: row?.last_won_at ?? null,
       });
 
@@ -67,16 +60,15 @@ export default async function handler(req, res) {
       const { action, amount } = req.body || {};
 
       if (action === 'contribute' && typeof amount === 'number' && amount > 0) {
-        await db`UPDATE jackpot SET amount = amount + ${Math.floor(amount)} WHERE id = 1`;
+        const contrib = Math.floor(amount);
+        await db`UPDATE jackpot SET amount = amount + ${contrib} WHERE id = 1`;
         const rows = await db`SELECT amount FROM jackpot WHERE id = 1`;
-        return res.json({ jackpot: rows[0]?.amount ?? JACKPOT_SEED });
+        return res.json({ jackpot: Number(rows[0]?.amount ?? JACKPOT_SEED) });
 
       } else if (action === 'win') {
-        // Apply any pending growth first
         await applyTimeGrowth(db);
-        // Get current value, then reset
         const rows = await db`SELECT amount FROM jackpot WHERE id = 1`;
-        const won = rows[0]?.amount ?? JACKPOT_SEED;
+        const won = Number(rows[0]?.amount ?? JACKPOT_SEED);
         await db`
           UPDATE jackpot
           SET amount = ${JACKPOT_SEED}, last_won_at = NOW(), last_growth_at = NOW()
@@ -93,6 +85,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('Jackpot error:', err);
-    return res.status(500).json({ error: 'Database error' });
+    return res.status(500).json({ error: 'Database error: ' + err.message });
   }
 }
