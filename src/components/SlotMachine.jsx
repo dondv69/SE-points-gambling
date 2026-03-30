@@ -11,7 +11,7 @@ import { audio } from '../utils/audio';
 import { sendChatMessage, formatWinMessage, shouldAnnounce } from '../utils/chatBot';
 import { Trophy, Sparkles } from 'lucide-react';
 
-export default function SlotMachine({ balance, setBalance, channelId, username, jwt, jackpot, setJackpot, addHistory, addLeaderboardEntry, showToast }) {
+export default function SlotMachine({ balance, setBalance, username, jackpot, setJackpot, addHistory, addLeaderboardEntry, showToast }) {
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState([null, null, null]);
   const [bet, setBet] = useState(100);
@@ -50,9 +50,8 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
 
     // API deduct
     try {
-      await deductPoints(channelId, username, actualBet, jwt);
-    } catch (err) {
-      // Refund on API error
+      await deductPoints(username, actualBet);
+    } catch {
       setBalance(prev => prev + actualBet);
       setSpinning(false);
       audio.stopSpin();
@@ -69,7 +68,7 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
       ];
       setResults(currentResults.current);
     }
-  }, [spinning, bet, balance, channelId, username, jwt, showToast, setBalance]);
+  }, [spinning, bet, balance, username, showToast, setBalance]);
 
   const handleReelStop = useCallback((reelIndex) => {
     stoppedReels.current += 1;
@@ -91,8 +90,7 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
       }
 
       // Evaluate win
-      const currentBet = bonusMode ? bet : bet;
-      const winResult = evaluateWin(res, currentBet, jackpot);
+      const winResult = evaluateWin(res, bet, jackpot);
 
       // Apply bonus multiplier
       if (bonusMode && winResult.winAmount > 0) {
@@ -103,20 +101,19 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
       if (winResult.type === 'jackpot') {
         audio.jackpot();
         setBalance(prev => prev + jackpot);
-        addPoints(channelId, username, jackpot, jwt).catch(() => {});
+        addPoints(username, jackpot).catch(() => {});
         setJackpot(JACKPOT_SEED);
         setLastWin({ ...winResult, amount: jackpot });
         addHistory(res, jackpot, 'jackpot');
         addLeaderboardEntry(username, jackpot, 'JACKPOT');
         showToast(`JACKPOT! +${jackpot.toLocaleString()} pts!`, 'jackpot');
-        // Chat + overlay announce
         const siteUrl = window.location.origin;
-        sendChatMessage(channelId, jwt, formatWinMessage(username, jackpot, null, 'jackpot', siteUrl));
+        sendChatMessage(formatWinMessage(username, jackpot, null, 'jackpot', siteUrl));
         broadcastChannel.current?.postMessage({ type: 'jackpot', username, amount: jackpot });
       } else if (winResult.winAmount > 0) {
         audio.win(winResult.multiplier);
         setBalance(prev => prev + winResult.winAmount);
-        addPoints(channelId, username, winResult.winAmount, jwt).catch(() => {});
+        addPoints(username, winResult.winAmount).catch(() => {});
         setLastWin({ ...winResult, amount: winResult.winAmount });
         const winType = winResult.multiplier >= 25 ? 'mega' : winResult.multiplier >= 10 ? 'big' : 'win';
         addHistory(res, winResult.winAmount - bet, winType === 'mega' ? 'mega' : 'win');
@@ -124,26 +121,22 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
           addLeaderboardEntry(username, winResult.winAmount, winResult.label);
         }
         showToast(`+${winResult.winAmount.toLocaleString()} pts!`, winType === 'mega' ? 'mega' : 'win');
-        // Announce big wins in chat + overlay
         if (shouldAnnounce(winResult.winAmount, bet, winType)) {
           const siteUrl = window.location.origin;
-          sendChatMessage(channelId, jwt, formatWinMessage(username, winResult.winAmount, winResult.multiplier, winType, siteUrl));
+          sendChatMessage(formatWinMessage(username, winResult.winAmount, winResult.multiplier, winType, siteUrl));
           broadcastChannel.current?.postMessage({ type: winType, username, amount: winResult.winAmount, multiplier: winResult.multiplier });
         }
       } else {
         audio.loss();
-        // Contribute to jackpot
         setJackpot(prev => prev + Math.floor(bet * JACKPOT_CONTRIBUTION_RATE));
         setLastWin(null);
         addHistory(res, -bet, 'loss');
       }
 
-      // Near miss check
       if (isNearMiss(res)) {
         setNearMiss(true);
       }
 
-      // Bonus mode countdown
       if (bonusMode) {
         setBonusSpinsLeft(prev => {
           const next = prev - 1;
@@ -153,13 +146,12 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
           }
           return next;
         });
-        // Auto-spin in bonus mode
         if (bonusSpinsLeft > 1) {
           setTimeout(() => handleSpin(), 1500);
         }
       }
     }
-  }, [bonusMode, bonusSpinsLeft, bet, jackpot, channelId, username, jwt, setBalance, setJackpot, addHistory, addLeaderboardEntry, showToast, handleSpin]);
+  }, [bonusMode, bonusSpinsLeft, bet, jackpot, username, setBalance, setJackpot, addHistory, addLeaderboardEntry, showToast, handleSpin]);
 
   const handleBonusBuy = useCallback(() => {
     handleSpin(true);
@@ -168,29 +160,22 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
   const handleKeyDown = useCallback((e) => {
     if (e.code === 'Space' && !spinning && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      if (bonusMode && bonusSpinsLeft > 0) {
-        handleSpin();
-      } else {
-        handleSpin();
-      }
+      handleSpin();
     }
-  }, [spinning, bonusMode, bonusSpinsLeft, handleSpin]);
+  }, [spinning, handleSpin]);
 
-  // Attach keyboard listener
   if (typeof window !== 'undefined') {
     window.onkeydown = handleKeyDown;
   }
 
   return (
     <div className="slot-machine">
-      {/* Jackpot display */}
       <div className="jackpot-display">
         <span className="jackpot-icon"><Trophy size={20} /></span>
         <span className="jackpot-label">JACKPOT</span>
         <span className="jackpot-amount">{jackpot.toLocaleString()} pts</span>
       </div>
 
-      {/* Reels */}
       <div className="reels-container">
         {[0, 1, 2].map(i => (
           <Reel
@@ -205,12 +190,10 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
         ))}
       </div>
 
-      {/* Win display */}
       <AnimatePresence>
         {lastWin && <WinDisplay win={lastWin} nearMiss={nearMiss} />}
       </AnimatePresence>
 
-      {/* Bonus mode indicator */}
       {bonusMode && (
         <div className="bonus-indicator">
           <Sparkles size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
@@ -218,7 +201,6 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
         </div>
       )}
 
-      {/* Bet controls */}
       <BetControls
         bet={bet}
         setBet={setBet}
@@ -229,7 +211,6 @@ export default function SlotMachine({ balance, setBalance, channelId, username, 
         bonusMode={bonusMode}
       />
 
-      {/* Bonus overlay */}
       <AnimatePresence>
         {bonusMode && bonusSpinsLeft === BONUS_FREE_SPINS && (
           <BonusOverlay onComplete={() => {}} />

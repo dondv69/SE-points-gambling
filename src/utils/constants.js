@@ -51,9 +51,8 @@ export const SPIN_STAGGER = 300;
 export const LEADERBOARD_MAX = 10;
 export const HISTORY_MAX = 20;
 
-// Channel config — set via Vercel env vars
+// Channel name for Twitch embed (public, no secret)
 export const CHANNEL_NAME = import.meta.env.VITE_CHANNEL_NAME || '';
-export const SE_JWT = import.meta.env.VITE_SE_JWT || '';
 
 // LocalStorage keys
 export const LS_KEYS = {

@@ -1,25 +1,18 @@
-const SE_BASE = 'https://api.streamelements.com/kappa/v2';
+// Chat messages go through /api/chat serverless function.
 
-// Send a message to SE chat bot
-export async function sendChatMessage(channelId, jwt, message) {
+export async function sendChatMessage(message) {
   try {
-    const res = await fetch(`${SE_BASE}/bot/${channelId}/say`, {
+    const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
     });
-    if (!res.ok) throw new Error(`Chat API error: ${res.status}`);
-    return true;
-  } catch (err) {
-    console.warn('Failed to send chat message:', err);
+    return res.ok;
+  } catch {
     return false;
   }
 }
 
-// Format a big win chat message
 export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   const emojis = type === 'jackpot' ? '🏆🏆🏆' : type === 'mega' ? '💎💎💎' : '🎰🎰🎰';
 
@@ -28,7 +21,7 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   if (type === 'jackpot') {
     msg += ' hitting the JACKPOT!';
   } else if (multiplier) {
-    msg += ` (${multiplier}× multiplier)!`;
+    msg += ` (${multiplier}x multiplier)!`;
   }
 
   if (siteUrl) {
@@ -38,13 +31,10 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   return msg;
 }
 
-// Determine if a win is "big" enough to announce
 export function shouldAnnounce(winAmount, bet, type) {
   if (type === 'jackpot') return true;
   if (type === 'bonus') return true;
-  // Announce 10x+ wins
   if (bet > 0 && winAmount / bet >= 10) return true;
-  // Announce wins over 5000
   if (winAmount >= 5000) return true;
   return false;
 }

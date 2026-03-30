@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Disc3, User } from 'lucide-react';
 import { fetchPoints } from '../utils/api';
 
-export default function UserLogin({ channelId, jwt, onLogin }) {
+export default function UserLogin({ onLogin }) {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,9 +15,9 @@ export default function UserLogin({ channelId, jwt, onLogin }) {
     setError('');
 
     try {
-      const points = await fetchPoints(channelId, username.trim().toLowerCase(), jwt);
+      const points = await fetchPoints(username.trim().toLowerCase());
       onLogin(username.trim().toLowerCase(), points);
-    } catch (err) {
+    } catch {
       setError('Could not fetch points. Check your username is correct.');
     } finally {
       setLoading(false);

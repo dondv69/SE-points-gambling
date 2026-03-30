@@ -1,52 +1,36 @@
-const SE_BASE = 'https://api.streamelements.com/kappa/v2';
+// All SE API calls go through /api/* serverless functions.
+// JWT never touches the browser.
 
-let cachedChannelId = null;
-
-// Resolve channel name to SE channel ID
-export async function getChannelId(channelName, jwt) {
-  if (cachedChannelId) return cachedChannelId;
-
-  const res = await fetch(`${SE_BASE}/channels/${channelName}`, {
-    headers: { Authorization: `Bearer ${jwt}` },
-  });
-  if (!res.ok) throw new Error(`Could not find SE channel: ${res.status}`);
+export async function getChannelId() {
+  const res = await fetch('/api/channel');
+  if (!res.ok) throw new Error('Could not connect to StreamElements');
   const data = await res.json();
-  cachedChannelId = data._id;
-  return cachedChannelId;
+  return data.channelId;
 }
 
-export async function fetchPoints(channelId, username, jwt) {
-  const res = await fetch(`${SE_BASE}/points/${channelId}/${username}`, {
-    headers: { Authorization: `Bearer ${jwt}` },
-  });
-  if (!res.ok) throw new Error(`SE API error: ${res.status}`);
+export async function fetchPoints(username) {
+  const res = await fetch(`/api/points?username=${encodeURIComponent(username)}`);
+  if (!res.ok) throw new Error('Could not fetch points');
   const data = await res.json();
   return data.points ?? 0;
 }
 
-export async function updatePoints(channelId, username, amount, jwt) {
-  const endpoint = amount >= 0
-    ? `${SE_BASE}/points/${channelId}/${username}/${Math.abs(amount)}`
-    : `${SE_BASE}/points/${channelId}/${username}/-${Math.abs(amount)}`;
-
-  const res = await fetch(endpoint, {
+export async function deductPoints(username, amount) {
+  const res = await fetch(`/api/points?username=${encodeURIComponent(username)}`, {
     method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: -Math.abs(amount) }),
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`SE API error ${res.status}: ${text}`);
-  }
+  if (!res.ok) throw new Error('Failed to deduct points');
   return res.json();
 }
 
-export async function deductPoints(channelId, username, amount, jwt) {
-  return updatePoints(channelId, username, -Math.abs(amount), jwt);
-}
-
-export async function addPoints(channelId, username, amount, jwt) {
-  return updatePoints(channelId, username, Math.abs(amount), jwt);
+export async function addPoints(username, amount) {
+  const res = await fetch(`/api/points?username=${encodeURIComponent(username)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: Math.abs(amount) }),
+  });
+  if (!res.ok) throw new Error('Failed to add points');
+  return res.json();
 }

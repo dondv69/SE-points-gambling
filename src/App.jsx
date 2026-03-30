@@ -7,7 +7,7 @@ import Leaderboard from './components/Leaderboard';
 import SpinHistory from './components/SpinHistory';
 import { ToastContainer, createToast } from './components/Toast';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { LS_KEYS, LEADERBOARD_MAX, HISTORY_MAX, JACKPOT_SEED, CHANNEL_NAME, SE_JWT } from './utils/constants';
+import { LS_KEYS, LEADERBOARD_MAX, HISTORY_MAX, JACKPOT_SEED, CHANNEL_NAME } from './utils/constants';
 import { getChannelId } from './utils/api';
 import './styles/app.css';
 
@@ -15,7 +15,7 @@ let historyId = 0;
 let lbId = 0;
 
 export default function App() {
-  const [channelId, setChannelId] = useState('');
+  const [ready, setReady] = useState(false);
   const [configError, setConfigError] = useState('');
   const [username, setUsername] = useLocalStorage(LS_KEYS.USERNAME, '');
   const [balance, setBalance] = useState(0);
@@ -26,15 +26,11 @@ export default function App() {
   const [jackpot, setJackpot] = useLocalStorage(LS_KEYS.JACKPOT, JACKPOT_SEED);
   const [toasts, setToasts] = useState([]);
 
-  // Resolve channel name → SE channel ID on mount
+  // Verify backend is configured on mount
   useEffect(() => {
-    if (!CHANNEL_NAME || !SE_JWT) {
-      setConfigError('Missing VITE_CHANNEL_NAME or VITE_SE_JWT environment variables.');
-      return;
-    }
-    getChannelId(CHANNEL_NAME, SE_JWT)
-      .then(id => setChannelId(id))
-      .catch(() => setConfigError('Could not resolve StreamElements channel. Check env vars.'));
+    getChannelId()
+      .then(() => setReady(true))
+      .catch(() => setConfigError('Could not connect to StreamElements. Check server config.'));
   }, []);
 
   const showToast = useCallback((message, type) => {
@@ -78,7 +74,7 @@ export default function App() {
         </div>
         <div className="setup-overlay">
           <div className="setup-panel">
-            <h2 className="setup-title">Configuration Error</h2>
+            <h2 className="setup-title">Connection Error</h2>
             <p className="setup-error">{configError}</p>
           </div>
         </div>
@@ -86,8 +82,8 @@ export default function App() {
     );
   }
 
-  // Loading channel ID
-  if (!channelId) {
+  // Loading
+  if (!ready) {
     return (
       <div className="app">
         <div className="app-header">
@@ -110,7 +106,7 @@ export default function App() {
         <div className="app-header">
           <h1 className="app-title"><Disc3 size={22} /> StreamSlots</h1>
         </div>
-        <UserLogin channelId={channelId} jwt={SE_JWT} onLogin={handleLogin} />
+        <UserLogin onLogin={handleLogin} />
       </div>
     );
   }
@@ -136,9 +132,7 @@ export default function App() {
             <SlotMachine
               balance={balance}
               setBalance={setBalance}
-              channelId={channelId}
               username={username}
-              jwt={SE_JWT}
               jackpot={jackpot}
               setJackpot={setJackpot}
               addHistory={addHistory}
