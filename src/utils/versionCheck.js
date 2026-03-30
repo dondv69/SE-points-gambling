@@ -1,4 +1,4 @@
-const CLIENT_VERSION = 2;
+const CLIENT_VERSION = 3;
 let checking = false;
 
 export async function checkVersion() {
