@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { audio } from '../utils/audio';
 
@@ -10,13 +10,14 @@ const SLICES = [
   { multiplier: 2,   color: '#34D399', label: '2x' },
 ];
 
-// Hidden probabilities (not equal!) — tuned for 99% bonus RTP
+// Hidden probabilities — tuned for 99% bonus RTP
+// E[mult] = 3.333, with 3 spins at 99% base = 9.9x return on 10x cost
 const WEIGHTS = [
-  { multiplier: 100, weight: 0.003 },
-  { multiplier: 10,  weight: 0.015 },
-  { multiplier: 5,   weight: 0.060 },
-  { multiplier: 3,   weight: 0.739 },
-  { multiplier: 2,   weight: 0.183 },
+  { multiplier: 100, weight: 0.003 },  // 0.3%
+  { multiplier: 10,  weight: 0.015 },  // 1.5%
+  { multiplier: 5,   weight: 0.060 },  // 6%
+  { multiplier: 3,   weight: 0.739 },  // 73.9%
+  { multiplier: 2,   weight: 0.183 },  // 18.3%
 ];
 
 function pickMultiplier() {
@@ -26,65 +27,50 @@ function pickMultiplier() {
     cumulative += w.weight;
     if (r <= cumulative) return w.multiplier;
   }
-  return 2; // fallback
+  return 2;
 }
 
-const SLICE_ANGLE = 360 / SLICES.length; // 72 degrees each
+const SLICE_ANGLE = 360 / SLICES.length;
 
 export default function BonusWheel({ onResult }) {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
-  const hasSpun = useRef(false);
 
-  // Auto-spin on mount
-  useEffect(() => {
-    if (hasSpun.current) return;
-    hasSpun.current = true;
+  const handleSpin = useCallback(async () => {
+    if (spinning || result) return;
+    await audio.ensure();
 
-    const timer = setTimeout(async () => {
-      await audio.ensure();
-      const chosen = pickMultiplier();
-      setSpinning(true);
+    const chosen = pickMultiplier();
+    setSpinning(true);
 
-      // Find the slice index
-      const sliceIdx = SLICES.findIndex(s => s.multiplier === chosen);
-      // Calculate target angle: we want this slice under the pointer (top)
-      // Slice center = sliceIdx * 72 + 36 degrees
-      // We need to rotate so this center is at 0 (top)
-      // Plus several full rotations for drama
-      const fullSpins = 5 + Math.floor(Math.random() * 3);
-      const sliceCenter = sliceIdx * SLICE_ANGLE + SLICE_ANGLE / 2;
-      // Add randomness within the slice
-      const jitter = (Math.random() - 0.5) * (SLICE_ANGLE * 0.6);
-      const targetAngle = fullSpins * 360 + (360 - sliceCenter) + jitter;
+    const sliceIdx = SLICES.findIndex(s => s.multiplier === chosen);
+    const fullSpins = 5 + Math.floor(Math.random() * 3);
+    const sliceCenter = sliceIdx * SLICE_ANGLE + SLICE_ANGLE / 2;
+    const jitter = (Math.random() - 0.5) * (SLICE_ANGLE * 0.6);
+    const targetAngle = fullSpins * 360 + (360 - sliceCenter) + jitter;
 
-      setRotation(targetAngle);
+    setRotation(targetAngle);
 
-      // Wait for animation to finish
-      setTimeout(() => {
-        setSpinning(false);
-        setResult(chosen);
-        audio.bonus();
-        // Notify parent after a short pause for drama
-        setTimeout(() => onResult(chosen), 1500);
-      }, 4000);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [onResult]);
+    setTimeout(() => {
+      setSpinning(false);
+      setResult(chosen);
+      audio.bonus();
+      setTimeout(() => onResult(chosen), 1500);
+    }, 4000);
+  }, [spinning, result, onResult]);
 
   return (
     <div className="bonus-wheel-overlay">
       <div className="bonus-wheel-content">
         <h2 className="bonus-wheel-title">BONUS ROUND</h2>
-        <p className="bonus-wheel-subtitle">Spinning for your multiplier...</p>
+        <p className="bonus-wheel-subtitle">
+          {result ? `You got ${result}x!` : spinning ? 'Spinning...' : 'Spin the wheel for your multiplier!'}
+        </p>
 
         <div className="wheel-wrapper">
-          {/* Pointer */}
           <div className="wheel-pointer">▼</div>
 
-          {/* Wheel */}
           <motion.div
             className="wheel"
             animate={{ rotate: rotation }}
@@ -133,11 +119,17 @@ export default function BonusWheel({ onResult }) {
                   </g>
                 );
               })}
-              {/* Center circle */}
               <circle cx="100" cy="100" r="18" fill="var(--void, #0B0B1A)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
             </svg>
           </motion.div>
         </div>
+
+        {/* Spin button — only before spinning */}
+        {!spinning && !result && (
+          <button className="wheel-spin-btn" onClick={handleSpin}>
+            SPIN THE WHEEL
+          </button>
+        )}
 
         {/* Result display */}
         {result && (

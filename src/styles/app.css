@@ -1012,6 +1012,24 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.wheel-spin-btn {
+  padding: var(--sp-4) var(--sp-8);
+  background: linear-gradient(135deg, var(--signal-hot), var(--phosphor));
+  color: #fff;
+  border: none;
+  border-radius: var(--r-lg);
+  font-family: 'Russo One', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+
+.wheel-spin-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px var(--signal-hot-glow);
+}
+
 /* ===== BONUS OVERLAY ===== */
 .bonus-overlay {
   position: fixed;
