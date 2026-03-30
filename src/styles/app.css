@@ -168,6 +168,13 @@ input:focus-visible {
   gap: var(--sp-4);
 }
 
+.header-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--bezel-strong);
+}
+
 .header-user {
   display: flex;
   align-items: center;
@@ -380,6 +387,20 @@ input:focus-visible {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+}
+
+.twitch-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #9146FF;
+  text-decoration: none;
+  font-family: 'Russo One', sans-serif;
+}
+
+.twitch-login-btn:hover {
+  background: #7C2FE6;
+  box-shadow: 0 4px 20px rgba(145, 70, 255, 0.4);
 }
 
 /* ===== SLOT MACHINE ===== */

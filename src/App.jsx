@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { User, Disc3 } from 'lucide-react';
 import UserLogin from './components/UserLogin';
+import AuthCallback from './components/AuthCallback';
 import SlotMachine from './components/SlotMachine';
 import TwitchEmbed from './components/TwitchEmbed';
 import Leaderboard from './components/Leaderboard';
@@ -18,6 +20,8 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [configError, setConfigError] = useState('');
   const [username, setUsername] = useLocalStorage(LS_KEYS.USERNAME, '');
+  const [displayName, setDisplayName] = useLocalStorage('se_slots_display', '');
+  const [avatar, setAvatar] = useLocalStorage('se_slots_avatar', '');
   const [balance, setBalance] = useState(0);
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -26,7 +30,6 @@ export default function App() {
   const [jackpot, setJackpot] = useLocalStorage(LS_KEYS.JACKPOT, JACKPOT_SEED);
   const [toasts, setToasts] = useState([]);
 
-  // Verify backend is configured on mount
   useEffect(() => {
     getChannelId()
       .then(() => setReady(true))
@@ -42,11 +45,13 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const handleLogin = useCallback((user, points) => {
+  const handleLogin = useCallback((user, points, display, profileImg) => {
     setUsername(user);
+    setDisplayName(display || user);
+    setAvatar(profileImg || '');
     setBalance(points);
     setLoggedIn(true);
-  }, [setUsername]);
+  }, [setUsername, setDisplayName, setAvatar]);
 
   const addHistory = useCallback((symbols, net, type) => {
     const entry = { id: ++historyId, symbols, net, type, timestamp: Date.now() };
@@ -99,58 +104,62 @@ export default function App() {
     );
   }
 
-  // Login
-  if (!loggedIn) {
-    return (
-      <div className="app">
-        <div className="app-header">
-          <h1 className="app-title"><Disc3 size={22} /> StreamSlots</h1>
-        </div>
-        <UserLogin onLogin={handleLogin} />
-      </div>
-    );
-  }
-
   return (
     <div className="app">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback onLogin={handleLogin} />} />
+        <Route path="*" element={
+          !loggedIn ? (
+            <>
+              <div className="app-header">
+                <h1 className="app-title"><Disc3 size={22} /> StreamSlots</h1>
+              </div>
+              <UserLogin />
+            </>
+          ) : (
+            <>
+              <div className="app-header">
+                <h1 className="app-title"><Disc3 size={22} /> StreamSlots</h1>
+                <div className="app-header-right">
+                  {avatar && <img src={avatar} alt="" className="header-avatar" />}
+                  <span className="header-user"><User size={16} /> {displayName}</span>
+                </div>
+              </div>
 
-      <div className="app-header">
-        <h1 className="app-title"><Disc3 size={22} /> StreamSlots</h1>
-        <div className="app-header-right">
-          <span className="header-user"><User size={16} /> {username}</span>
-        </div>
-      </div>
+              <div className="app-layout">
+                <div className="layout-stream">
+                  <TwitchEmbed channel={CHANNEL_NAME} />
+                </div>
 
-      <div className="app-layout">
-        <div className="layout-stream">
-          <TwitchEmbed channel={CHANNEL_NAME} />
-        </div>
+                <div className="layout-bottom">
+                  <div className="layout-slots">
+                    <SlotMachine
+                      balance={balance}
+                      setBalance={setBalance}
+                      username={username}
+                      jackpot={jackpot}
+                      setJackpot={setJackpot}
+                      addHistory={addHistory}
+                      addLeaderboardEntry={addLeaderboardEntry}
+                      showToast={showToast}
+                    />
+                  </div>
 
-        <div className="layout-bottom">
-          <div className="layout-slots">
-            <SlotMachine
-              balance={balance}
-              setBalance={setBalance}
-              username={username}
-              jackpot={jackpot}
-              setJackpot={setJackpot}
-              addHistory={addHistory}
-              addLeaderboardEntry={addLeaderboardEntry}
-              showToast={showToast}
-            />
-          </div>
-
-          <div className="layout-sidebar">
-            <Leaderboard
-              entries={leaderboard}
-              onReset={resetLeaderboard}
-              isStreamer={false}
-            />
-            <SpinHistory history={history} />
-          </div>
-        </div>
-      </div>
+                  <div className="layout-sidebar">
+                    <Leaderboard
+                      entries={leaderboard}
+                      onReset={resetLeaderboard}
+                      isStreamer={false}
+                    />
+                    <SpinHistory history={history} />
+                  </div>
+                </div>
+              </div>
+            </>
+          )
+        } />
+      </Routes>
     </div>
   );
 }
