@@ -10,14 +10,14 @@ const SLICES = [
   { multiplier: 2,   color: '#34D399', label: '2x' },
 ];
 
-// Hidden probabilities — tuned for 99% bonus RTP
-// E[mult] = 3.333, with 3 spins at 99% base = 9.9x return on 10x cost
+// Hidden probabilities — tuned for ~99% bonus RTP
+// E[mult] = 3.37, with 3 spins at 99% base RTP
 const WEIGHTS = [
   { multiplier: 100, weight: 0.003 },  // 0.3%
   { multiplier: 10,  weight: 0.015 },  // 1.5%
-  { multiplier: 5,   weight: 0.060 },  // 6%
-  { multiplier: 3,   weight: 0.739 },  // 73.9%
-  { multiplier: 2,   weight: 0.183 },  // 18.3%
+  { multiplier: 5,   weight: 0.135 },  // 13.5%
+  { multiplier: 3,   weight: 0.547 },  // 54.7%
+  { multiplier: 2,   weight: 0.300 },  // 30%
 ];
 
 function pickMultiplier() {
@@ -126,9 +126,18 @@ export default function BonusWheel({ onResult }) {
 
         {/* Spin button — only before spinning */}
         {!spinning && !result && (
-          <button className="wheel-spin-btn" onClick={handleSpin}>
-            SPIN THE WHEEL
-          </button>
+          <>
+            <button className="wheel-spin-btn" onClick={handleSpin}>
+              SPIN THE WHEEL
+            </button>
+            <div className="wheel-odds">
+              {WEIGHTS.map(w => (
+                <span key={w.multiplier} className="wheel-odds-item">
+                  {w.multiplier}x <span className="wheel-odds-pct">{(w.weight * 100).toFixed(1)}%</span>
+                </span>
+              )).reverse()}
+            </div>
+          </>
         )}
 
         {/* Result display */}

@@ -1030,6 +1030,26 @@ input:focus-visible {
   box-shadow: 0 6px 24px var(--signal-hot-glow);
 }
 
+.wheel-odds {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--sp-2);
+}
+
+.wheel-odds-item {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+.wheel-odds-pct {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
 /* ===== BONUS OVERLAY ===== */
 .bonus-overlay {
   position: fixed;
