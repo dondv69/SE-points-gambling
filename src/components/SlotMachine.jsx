@@ -6,6 +6,8 @@ import WinDisplay from './WinDisplay';
 import BonusPicker from './BonusPicker';
 import BonusWheel from './BonusWheel';
 import VaultHeist from './VaultHeist';
+import GoldenRain from './GoldenRain';
+import ScratchCard from './ScratchCard';
 import { REEL_COUNT, SPIN_DURATION_BASE, SPIN_STAGGER, BONUS_BUY_MULTIPLIER, JACKPOT_CONTRIBUTION_RATE } from '../utils/constants';
 import { spinReels, evaluateWin, isBonusTriggered, isNearMiss } from '../utils/slotLogic';
 import { deductPoints, addPoints } from '../utils/api';
@@ -43,7 +45,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
   const inBonus = bonusStage !== 'none';
   const inFreeSpins = bonusStage === 'freespins';
-  const inOverlay = bonusStage === 'picker' || bonusStage === 'wheel' || bonusStage === 'vault';
+  const inOverlay = bonusStage !== 'none' && bonusStage !== 'freespins';
   const canSpin = !spinning && !inOverlay && (inFreeSpins ? bonusSpinsLeft > 0 : balance >= bet);
   const spinBase = turbo ? 200 : SPIN_DURATION_BASE;
   const spinStagger = turbo ? 50 : SPIN_STAGGER;
@@ -95,13 +97,9 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     }
   }, [spinning, inOverlay, inFreeSpins, bet, balance, username, showToast, setBalance]);
 
-  // Stage 1: Bonus picker result
+  // Stage 1: Bonus picker result → route to game
   const handlePickerResult = useCallback((game) => {
-    if (game === 'vault') {
-      setBonusStage('vault');
-    } else {
-      setBonusStage('wheel');
-    }
+    setBonusStage(game === 'freespins' ? 'wheel' : game);
   }, []);
 
   // Stage 2a: Wheel result → free spins
@@ -112,19 +110,21 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     showToast(`${multiplier}x multiplier! ${BONUS_SPINS} free spins!`, 'bonus');
   }, [showToast]);
 
-  // Stage 2b: Vault heist complete
-  const handleVaultComplete = useCallback((totalMultiplier) => {
+  // Generic bonus game complete — all instant-payout bonus games use this
+  const handleBonusGameComplete = useCallback((totalMultiplier, gameName, emoji) => {
     const payout = Math.floor(bonusBet * totalMultiplier);
     if (payout > 0) {
       setBalance(prev => prev + payout);
       addPoints(username, payout).catch(() => {});
-      showToast(`Vault Heist: ${totalMultiplier}x — +${(payout - bonusBet).toLocaleString()} pts!`, payout > bonusBet * 5 ? 'mega' : 'win');
+      showToast(`${gameName}: ${totalMultiplier}x — +${(payout - bonusBet).toLocaleString()} pts!`, payout > bonusBet * 5 ? 'mega' : 'win');
       if (shouldAnnounce(payout, bonusBet, 'win')) {
         const siteUrl = window.location.origin;
         sendChatMessage(formatWinMessage(username, payout, totalMultiplier, 'mega', siteUrl));
       }
+    } else {
+      showToast(`${gameName}: ${totalMultiplier}x — no win`, 'error');
     }
-    addHistory([{ emoji: `🔓 Vault ${totalMultiplier}x` }], payout - bonusBet, payout > 0 ? 'win' : 'loss');
+    addHistory([{ emoji: `${emoji} ${gameName} ${totalMultiplier}x` }], payout - bonusBet, payout > 0 ? 'win' : 'loss');
     reportSpin(username, bonusBet, payout);
     setBonusStage('none');
     setBonusBet(0);
@@ -302,12 +302,10 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       {/* Bonus overlays */}
       <AnimatePresence>
         {bonusStage === 'picker' && <BonusPicker onResult={handlePickerResult} />}
-      </AnimatePresence>
-      <AnimatePresence>
         {bonusStage === 'wheel' && <BonusWheel onResult={handleWheelResult} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {bonusStage === 'vault' && <VaultHeist bet={bonusBet} onComplete={handleVaultComplete} />}
+        {bonusStage === 'vault' && <VaultHeist bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Vault Heist', '🔓')} />}
+        {bonusStage === 'golden' && <GoldenRain bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Golden Rain', '✨')} />}
+        {bonusStage === 'scratch' && <ScratchCard bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Scratch Card', '🎟️')} />}
       </AnimatePresence>
     </div>
   );
