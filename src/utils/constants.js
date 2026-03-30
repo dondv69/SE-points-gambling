@@ -24,8 +24,8 @@ export const WIN_TABLE = [
 ];
 
 // Bet presets
-export const BET_PRESETS = [1, 10, 100, 1000, 10000];
-export const MIN_BET = 1;
+export const BET_PRESETS = [10, 100, 1000, 5000, 10000];
+export const MIN_BET = 10;
 
 // Bonus — wheel picks multiplier → 3 spins × E[mult]=3.33 × 0.99 = 9.9 (99% RTP)
 export const BONUS_BUY_MULTIPLIER = 10;
