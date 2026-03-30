@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Disc3, Zap, Play, FastForward } from 'lucide-react';
+import { Disc3, Zap, Play, FastForward, RefreshCw } from 'lucide-react';
 import { BET_PRESETS, MIN_BET, BONUS_BUY_MULTIPLIER } from '../utils/constants';
 
 export default function BetControls({
   bet, setBet, balance, spinning, onSpin, onBonusBuy, bonusMode,
-  autoSpin, onAutoSpinToggle, turbo, onTurboToggle,
+  autoSpin, onAutoSpinToggle, turbo, onTurboToggle, onRefreshBalance, refreshing,
 }) {
   const [customBet, setCustomBet] = useState('');
 
@@ -58,6 +58,9 @@ export default function BetControls({
             <span className="balance-label">Bal</span>
             <span className="balance-amount">{balance.toLocaleString()}</span>
             <span className="balance-pts">pts</span>
+            <button className="refresh-bal-btn" onClick={onRefreshBalance} disabled={refreshing || spinning} title="Refresh points from SE" aria-label="Refresh balance">
+              <RefreshCw size={12} className={refreshing ? 'spin-icon' : ''} />
+            </button>
           </div>
         </div>
       )}
