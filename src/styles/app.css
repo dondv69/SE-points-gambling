@@ -169,6 +169,24 @@ input:focus-visible {
   gap: var(--sp-4);
 }
 
+.header-balance {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--panel);
+  border: 1px solid var(--bezel);
+  border-radius: var(--r-md);
+  color: var(--discharge);
+}
+
+.header-balance-amount {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .header-avatar {
   width: 28px;
   height: 28px;

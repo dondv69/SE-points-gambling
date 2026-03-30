@@ -421,11 +421,6 @@ export default function Blackjack({ balance, setBalance, username, showToast, ad
               onChange={handleCustomBet}
               style={styles.customInput}
             />
-            <div style={styles.balanceDisplay}>
-              <span style={styles.balLabel}>Bal</span>
-              <span style={styles.balAmount}>{balance.toLocaleString()}</span>
-              <span style={styles.balPts}>pts</span>
-            </div>
           </div>
           <button
             style={{

@@ -6,7 +6,7 @@ import WinDisplay from './WinDisplay';
 import BonusWheel from './BonusWheel';
 import { REEL_COUNT, SPIN_DURATION_BASE, SPIN_STAGGER, BONUS_BUY_MULTIPLIER, JACKPOT_CONTRIBUTION_RATE, JACKPOT_SEED } from '../utils/constants';
 import { spinReels, evaluateWin, isBonusTriggered, isNearMiss } from '../utils/slotLogic';
-import { deductPoints, addPoints, fetchPoints } from '../utils/api';
+import { deductPoints, addPoints } from '../utils/api';
 import { audio } from '../utils/audio';
 import { sendChatMessage, formatWinMessage, shouldAnnounce } from '../utils/chatBot';
 import { reportSpin } from '../utils/leaderboardApi';
@@ -27,7 +27,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
   const [nearMiss, setNearMiss] = useState(false);
   const [autoSpin, setAutoSpin] = useState(false);
   const [turbo, setTurbo] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const stoppedReels = useRef(0);
   const currentResults = useRef([]);
   const autoSpinRef = useRef(false);
@@ -192,20 +191,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     handleSpin(true);
   }, [handleSpin]);
 
-  const handleRefreshBalance = useCallback(async () => {
-    if (refreshing || spinning) return;
-    setRefreshing(true);
-    try {
-      const points = await fetchPoints(username);
-      setBalance(points);
-      showToast('Balance refreshed', 'info');
-    } catch {
-      showToast('Could not refresh balance', 'error');
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, spinning, username, setBalance, showToast]);
-
   // Autospin
   useEffect(() => {
     if (!autoSpinRef.current || spinning || showWheel) return;
@@ -278,8 +263,6 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         onAutoSpinToggle={() => setAutoSpin(prev => !prev)}
         turbo={turbo}
         onTurboToggle={() => setTurbo(prev => !prev)}
-        onRefreshBalance={handleRefreshBalance}
-        refreshing={refreshing}
       />
 
       <AnimatePresence>

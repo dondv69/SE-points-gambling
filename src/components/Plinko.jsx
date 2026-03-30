@@ -271,11 +271,6 @@ export default function Plinko({ balance, setBalance, username, showToast, addHi
             value={customBet}
             onChange={handleCustomBet}
           />
-          <div className="balance-display">
-            <span className="balance-label">Bal</span>
-            <span className="balance-amount">{balance.toLocaleString()}</span>
-            <span className="balance-pts">pts</span>
-          </div>
         </div>
       </div>
 

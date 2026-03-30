@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { User, Disc3, Trophy, History, Gift, Heart, X } from 'lucide-react';
+import { User, Disc3, Trophy, History, Gift, Heart, X, RefreshCw, Coins } from 'lucide-react';
+import { fetchPoints } from './utils/api';
 import UserLogin from './components/UserLogin';
 import AuthCallback from './components/AuthCallback';
 import GameSelector from './components/GameSelector';
@@ -35,6 +36,7 @@ export default function App() {
   const [tab, setTab] = useState('game'); // 'game' | 'history' | 'leaderboard'
   const [showDeposit, setShowDeposit] = useState(false);
   const [lbRefreshing, setLbRefreshing] = useState(false);
+  const [balRefreshing, setBalRefreshing] = useState(false);
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [history, setHistory] = useLocalStorage(LS_KEYS.HISTORY, []);
@@ -92,6 +94,16 @@ export default function App() {
     } catch {}
     setLbRefreshing(false);
   }, []);
+
+  const refreshBalance = useCallback(async () => {
+    if (balRefreshing) return;
+    setBalRefreshing(true);
+    try {
+      const pts = await fetchPoints(username);
+      setBalance(pts);
+    } catch {}
+    setBalRefreshing(false);
+  }, [balRefreshing, username]);
 
   const addHistory = useCallback((symbols, net, type, game = 'slots') => {
     const entry = { id: ++historyId, symbols, net, type, game, timestamp: Date.now() };
@@ -172,6 +184,13 @@ export default function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                  <div className="header-balance">
+                    <Coins size={14} />
+                    <span className="header-balance-amount">{balance.toLocaleString()}</span>
+                    <button className="refresh-bal-btn" onClick={refreshBalance} disabled={balRefreshing} title="Refresh points" aria-label="Refresh balance">
+                      <RefreshCw size={11} className={balRefreshing ? 'spin-icon' : ''} />
+                    </button>
                   </div>
                   {avatar && <img src={avatar} alt="" className="header-avatar" />}
                   <span className="header-user"><User size={16} /> {displayName}</span>
