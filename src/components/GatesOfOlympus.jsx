@@ -16,11 +16,11 @@ import { Zap, Sparkles, MessageSquare, X } from 'lucide-react';
 
 // Timing (ms)
 const TIMING = {
-  initialDrop: 600,
-  winHighlight: 500,
-  symbolPop: 300,
-  cascadeFall: 400,
-  settleDelay: 800,
+  initialDrop: 700,
+  winHighlight: 600,
+  symbolPop: 350,
+  cascadeFall: 450,
+  settleDelay: 600,
 };
 const TURBO_FACTOR = 0.25;
 
@@ -33,14 +33,15 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
   // idle | dropping | highlighting | popping | cascading | settling
   const [grid, setGrid] = useState(() => generateGrid());
   const [winPositions, setWinPositions] = useState(new Set());
+  const [newCells, setNewCells] = useState(new Set()); // cells that just dropped in
   const [activeOrbs, setActiveOrbs] = useState([]);
   const [cascadeWin, setCascadeWin] = useState(0);
-  const [cascadeMultiplier, setCascadeMultiplier] = useState(0); // sum of orbs this cascade chain
-  const [showWin, setShowWin] = useState(null); // { amount, multiplier, shared }
+  const [cascadeMultiplier, setCascadeMultiplier] = useState(0);
+  const [showWin, setShowWin] = useState(null);
 
   // Free spins
   const [freeSpins, setFreeSpins] = useState(0);
-  const [freeSpinMultiplier, setFreeSpinMultiplier] = useState(0); // accumulated across all spins
+  const [freeSpinMultiplier, setFreeSpinMultiplier] = useState(0);
   const [isFreeSpinMode, setIsFreeSpinMode] = useState(false);
   const [freeSpinIntro, setFreeSpinIntro] = useState(false);
   const [freeSpinSummary, setFreeSpinSummary] = useState(null);
@@ -71,9 +72,10 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     const steps = stepsRef.current;
 
     if (idx >= steps.length) {
-      // No more cascades — settle
+      // No more cascades — show final grid and settle
       setGrid(finalGridRef.current);
       setWinPositions(new Set());
+      setNewCells(new Set());
       setPhase('settling');
       return;
     }
@@ -83,6 +85,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     // Show grid with winning positions highlighted
     setGrid(step.grid);
     setWinPositions(step.winPositions);
+    setNewCells(new Set());
     setPhase('highlighting');
 
     // Collect orbs
@@ -98,22 +101,45 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
       try { audio.orbCollect(); } catch {}
     }
 
-    // Add step win to cascade total
     setCascadeWin(prev => prev + step.winAmount);
     try { audio.win(step.winAmount > spinBetRef.current * 5 ? 10 : 2); } catch {}
   }, [isFreeSpinMode]);
 
-  // Phase transitions with timeouts
+  // Phase transitions
   useEffect(() => {
     if (phase === 'highlighting') {
       const timer = setTimeout(() => {
         setPhase('popping');
+        try { audio.cascadePop(); } catch {}
       }, t('winHighlight', turbo));
       return () => clearTimeout(timer);
     }
 
     if (phase === 'popping') {
       const timer = setTimeout(() => {
+        // After pop, load the next step's grid (cascade result)
+        const nextIdx = stepIdxRef.current + 1;
+        const steps = stepsRef.current;
+
+        // Figure out which cells are new (cascaded in)
+        const currentGrid = stepsRef.current[stepIdxRef.current]?.grid;
+        const currentWinPos = stepsRef.current[stepIdxRef.current]?.winPositions;
+        if (currentWinPos) {
+          // New cells are positions that had winning symbols (now replaced)
+          // In the next grid, the top N rows of each column are new
+          const incoming = new Set();
+          for (let c = 0; c < GRID_COLS; c++) {
+            let count = 0;
+            for (let r = 0; r < GRID_ROWS; r++) {
+              if (currentWinPos.has(`${c}-${r}`)) count++;
+            }
+            for (let r = 0; r < count; r++) {
+              incoming.add(`${c}-${r}`);
+            }
+          }
+          setNewCells(incoming);
+        }
+
         setActiveOrbs([]);
         setWinPositions(new Set());
         setPhase('cascading');
@@ -135,58 +161,39 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
       let totalWin = precomputedBaseWinRef.current;
       const orbTotal = precomputedOrbsRef.current;
 
-      // Apply multiplier (orbs from this cascade + accumulated free spin multiplier)
       const effectiveMult = isFreeSpinMode ? (freeSpinMultiplier || 1) : (orbTotal > 0 ? orbTotal : 1);
       if (effectiveMult > 1 && totalWin > 0) {
         totalWin = Math.floor(totalWin * effectiveMult);
       }
 
-      // Add scatter pay
       const scatPay = getScatterPay(totalScattersRef.current);
       if (scatPay > 0) {
         totalWin += Math.floor(scatPay * betAmt);
       }
 
-      // Payout
       const mult = betAmt > 0 ? totalWin / betAmt : 0;
       if (totalWin > 0) {
         setBalance(prev => prev + totalWin);
         addPoints(username, totalWin).catch(() => {});
-
-        if (isFreeSpinMode) {
-          freeSpinTotalWinRef.current += totalWin;
-        }
-
+        if (isFreeSpinMode) freeSpinTotalWinRef.current += totalWin;
         const winType = totalWin >= betAmt * 25 ? 'mega' : totalWin >= betAmt * 10 ? 'big' : 'win';
         addHistory([{ emoji: `⚡ Gates ${mult.toFixed(1)}x` }], totalWin - (isFreeSpinMode ? 0 : betAmt), winType, 'gates');
-
-        // Show win screen for 5x+ wins (stays until dismissed)
-        if (mult >= 5) {
-          setShowWin({ amount: totalWin, multiplier: mult, shared: false });
-        } else {
-          setShowWin({ amount: totalWin, multiplier: mult, shared: false });
-        }
+        setShowWin({ amount: totalWin, multiplier: mult, shared: false });
       } else {
         setShowWin(null);
         if (!isFreeSpinMode) {
           const contribution = Math.max(1, Math.floor(betAmt * JACKPOT_CONTRIBUTION_RATE));
-          contributeToJackpot(contribution).then(newJp => {
-            if (newJp) setJackpot(newJp);
-          });
+          contributeToJackpot(contribution).then(newJp => { if (newJp) setJackpot(newJp); });
         }
         addHistory([{ emoji: '⚡ Gates 0x' }], isFreeSpinMode ? 0 : -betAmt, 'loss', 'gates');
       }
 
-      if (!isFreeSpinMode) {
-        reportSpin(username, betAmt, totalWin);
-      }
+      if (!isFreeSpinMode) reportSpin(username, betAmt, totalWin);
 
-      // Check free spins trigger
       const scatterCount = totalScattersRef.current;
       const isBigWin = mult >= 5;
       const timer = setTimeout(() => {
         if (isFreeSpinMode) {
-          // Retrigger check
           if (scatterCount >= 3) {
             setFreeSpins(prev => prev + FREE_SPINS_RETRIGGER);
             showToast(`+${FREE_SPINS_RETRIGGER} free spins!`, 'bonus');
@@ -194,7 +201,6 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
           setFreeSpins(prev => {
             const next = prev - 1;
             if (next <= 0) {
-              // End free spins — show summary with share button
               const totalFsWin = freeSpinTotalWinRef.current;
               setIsFreeSpinMode(false);
               setFreeSpinMultiplier(0);
@@ -206,7 +212,6 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
           setPhase('idle');
           if (!isBigWin) setShowWin(null);
         } else if (scatterCount >= 4) {
-          // Trigger free spins
           try { audio.bonus(); } catch {}
           setShowWin(null);
           setFreeSpinIntro(true);
@@ -221,10 +226,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
           }, 2500);
         } else {
           setPhase('idle');
-          // Small wins auto-dismiss, big wins stay
-          if (!isBigWin) {
-            setTimeout(() => setShowWin(null), 1500);
-          }
+          if (!isBigWin) setTimeout(() => setShowWin(null), 1500);
         }
       }, t('settleDelay', turbo));
       return () => clearTimeout(timer);
@@ -255,7 +257,6 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
       }
     }
 
-    // Reset cascade state
     setCascadeWin(0);
     setCascadeMultiplier(0);
     setShowWin(null);
@@ -263,12 +264,19 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     setWinPositions(new Set());
     spinBetRef.current = bet;
 
-    // Generate grid
     const newGrid = isBonusBuy ? generateBonusBuyGrid() : generateGrid();
+
+    // Mark ALL cells as new for the initial drop
+    const allNew = new Set();
+    for (let c = 0; c < GRID_COLS; c++) {
+      for (let r = 0; r < GRID_ROWS; r++) {
+        allNew.add(`${c}-${r}`);
+      }
+    }
+    setNewCells(allNew);
     setGrid(newGrid);
     setPhase('dropping');
 
-    // Pre-compute cascade chain
     const { steps, finalGrid, totalScatters, totalBaseWin, totalOrbs } = simulateFullSpin(newGrid, bet);
     stepsRef.current = steps;
     finalGridRef.current = finalGrid;
@@ -277,21 +285,17 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     precomputedOrbsRef.current = totalOrbs;
     stepIdxRef.current = 0;
 
-    // After drop animation, start processing
     setTimeout(() => {
+      setNewCells(new Set());
       if (steps.length > 0) {
-        try { audio.cascadePop(); } catch {}
         processStep();
       } else {
-        // No wins at all
         setPhase('settling');
       }
     }, t('initialDrop', turbo));
   }, [busy, freeSpinIntro, freeSpinSummary, isFreeSpinMode, bet, balance, username, showToast, setBalance, turbo, processStep]);
 
-  const handleBonusBuy = useCallback(() => {
-    handleSpin(true);
-  }, [handleSpin]);
+  const handleBonusBuy = useCallback(() => { handleSpin(true); }, [handleSpin]);
 
   const handleShareWin = useCallback(() => {
     if (!showWin || showWin.shared) return;
@@ -301,9 +305,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     showToast('Shared in chat!', 'info');
   }, [showWin, username, showToast]);
 
-  const handleDismissWin = useCallback(() => {
-    setShowWin(null);
-  }, []);
+  const handleDismissWin = useCallback(() => { setShowWin(null); }, []);
 
   const handleShareFsSummary = useCallback(() => {
     if (!freeSpinSummary || freeSpinSummary.shared) return;
@@ -314,9 +316,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     showToast('Shared in chat!', 'info');
   }, [freeSpinSummary, username, showToast]);
 
-  const handleDismissFsSummary = useCallback(() => {
-    setFreeSpinSummary(null);
-  }, []);
+  const handleDismissFsSummary = useCallback(() => { setFreeSpinSummary(null); }, []);
 
   // Autospin
   useEffect(() => {
@@ -324,9 +324,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     const canAuto = isFreeSpinMode ? freeSpins > 0 : balance >= bet;
     if (!canAuto) { setAutoSpin(false); return; }
     const delay = turbo ? 50 : 600;
-    const timer = setTimeout(() => {
-      if (autoSpinRef.current) handleSpin();
-    }, delay);
+    const timer = setTimeout(() => { if (autoSpinRef.current) handleSpin(); }, delay);
     return () => clearTimeout(timer);
   }, [phase, autoSpin, busy, freeSpinIntro, freeSpinSummary, isFreeSpinMode, freeSpins, balance, bet, turbo, handleSpin]);
 
@@ -362,38 +360,34 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </div>
 
-      {/* 6x5 Grid */}
-      <div className="gates-grid">
-        {grid.map((col, colIdx) => (
-          <div key={colIdx} className="gates-column">
-            <AnimatePresence mode="popLayout">
-              {col.map((sym, rowIdx) => {
-                const isWinning = winPositions.has(`${colIdx}-${rowIdx}`);
-                const isPopping = isWinning && phase === 'popping';
-                return (
-                  <motion.div
-                    key={sym.instanceId}
-                    className={`gates-cell ${isWinning && !isPopping ? 'gates-cell-winning' : ''} ${sym.id === 'scatter' ? 'gates-cell-scatter' : ''}`}
-                    initial={{ y: -80, opacity: 0, scale: 0.6 }}
-                    animate={isPopping
-                      ? { scale: 0, opacity: 0, rotate: 15 }
-                      : { y: 0, opacity: 1, scale: 1 }
-                    }
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={isPopping
-                      ? { duration: 0.25 }
-                      : { type: 'spring', stiffness: 400, damping: 30, delay: phase === 'dropping' ? colIdx * 0.04 + rowIdx * 0.02 : 0 }
-                    }
-                  >
-                    <span className="gates-symbol">{sym.emoji}</span>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+      {/* 6×5 Grid — CSS-driven animations, no per-cell AnimatePresence */}
+      <div className={`gates-grid ${phase === 'dropping' ? 'gates-grid-dropping' : ''}`}>
+        {grid.map((col, c) => (
+          <div key={c} className="gates-column">
+            {col.map((sym, r) => {
+              const key = `${c}-${r}`;
+              const isWin = winPositions.has(key);
+              const isPop = isWin && phase === 'popping';
+              const isNew = newCells.has(key);
+              let cls = 'gates-cell';
+              if (isWin && !isPop) cls += ' gates-cell-win';
+              if (isPop) cls += ' gates-cell-pop';
+              if (isNew && (phase === 'dropping' || phase === 'cascading')) cls += ' gates-cell-drop';
+              if (sym.id === 'scatter') cls += ' gates-cell-scatter';
+              return (
+                <div
+                  key={sym.instanceId}
+                  className={cls}
+                  style={isNew ? { animationDelay: `${c * 40 + r * 25}ms` } : undefined}
+                >
+                  <span className="gates-symbol">{sym.emoji}</span>
+                </div>
+              );
+            })}
           </div>
         ))}
 
-        {/* Multiplier orbs overlay */}
+        {/* Multiplier orbs */}
         <AnimatePresence>
           {activeOrbs.map(orb => (
             <motion.div
@@ -404,9 +398,9 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
                 top: `${(orb.row + 0.5) * (100 / GRID_ROWS)}%`,
               }}
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0, y: -40 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              animate={{ scale: [0, 1.3, 1], opacity: 1 }}
+              exit={{ scale: 0, opacity: 0, y: -30 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
             >
               {orb.value}x
             </motion.div>
@@ -414,7 +408,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         </AnimatePresence>
       </div>
 
-      {/* Win screen overlay for big wins (5x+) */}
+      {/* Big win overlay (5x+) */}
       <AnimatePresence>
         {showWin && showWin.multiplier >= 5 && phase === 'idle' && (
           <motion.div
@@ -454,7 +448,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </AnimatePresence>
 
-      {/* Small win display (below 5x, inline) */}
+      {/* Small win (below 5x) */}
       <AnimatePresence>
         {showWin && showWin.multiplier < 5 && (
           <motion.div
@@ -462,7 +456,6 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
             <span className="gates-win-amount">+{showWin.amount.toLocaleString()}</span>
             <span className="gates-win-label">pts</span>
@@ -470,15 +463,10 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </AnimatePresence>
 
-      {/* Free spins intro overlay */}
+      {/* Free spins intro */}
       <AnimatePresence>
         {freeSpinIntro && (
-          <motion.div
-            className="gates-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <motion.div className="gates-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div
               className="gates-overlay-content"
               initial={{ scale: 0.5, y: 30 }}
@@ -493,15 +481,10 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </AnimatePresence>
 
-      {/* Free spins summary overlay with share */}
+      {/* Free spins summary */}
       <AnimatePresence>
         {freeSpinSummary && (
-          <motion.div
-            className="gates-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <motion.div className="gates-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div
               className="gates-win-screen"
               initial={{ scale: 0.5 }}
@@ -519,9 +502,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
                 +{freeSpinSummary.totalWin.toLocaleString()}
               </motion.div>
               {freeSpinSummary.bet > 0 && (
-                <div className="gates-win-mult">
-                  {(freeSpinSummary.totalWin / freeSpinSummary.bet).toFixed(1)}x total
-                </div>
+                <div className="gates-win-mult">{(freeSpinSummary.totalWin / freeSpinSummary.bet).toFixed(1)}x total</div>
               )}
               <button
                 className={`gates-share-btn ${freeSpinSummary.shared ? 'gates-share-done' : ''}`}
