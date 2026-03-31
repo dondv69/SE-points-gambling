@@ -8,24 +8,23 @@ import {
 } from '../utils/gatesLogic';
 import { deductPoints, addPoints } from '../utils/api';
 import { audio } from '../utils/audio';
-import { sendChatMessage, formatWinMessage, shouldAnnounce } from '../utils/chatBot';
 import { reportSpin } from '../utils/leaderboardApi';
 import { contributeToJackpot } from '../utils/jackpotApi';
 import { JACKPOT_CONTRIBUTION_RATE } from '../utils/constants';
-import { Zap, Sparkles, MessageSquare, X } from 'lucide-react';
+import WinShareOverlay from './WinShareOverlay';
+import { Zap, Sparkles } from 'lucide-react';
 
-// Timing (ms)
+// Timing (ms) — normal and turbo
 const TIMING = {
-  initialDrop: 700,
-  winHighlight: 600,
-  symbolPop: 350,
-  cascadeFall: 450,
-  settleDelay: 600,
+  initialDrop: [700, 250],
+  winHighlight: [600, 200],
+  symbolPop: [350, 150],
+  cascadeFall: [450, 200],
+  settleDelay: [600, 150],
 };
-const TURBO_FACTOR = 0.25;
 
 function t(key, turbo) {
-  return turbo ? Math.floor(TIMING[key] * TURBO_FACTOR) : TIMING[key];
+  return turbo ? TIMING[key][1] : TIMING[key][0];
 }
 
 export default function GatesOfOlympus({ balance, setBalance, username, showToast, addHistory, jackpot, setJackpot }) {
@@ -39,7 +38,8 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
   const [activeOrbs, setActiveOrbs] = useState([]);
   const [cascadeWin, setCascadeWin] = useState(0);
   const [cascadeMultiplier, setCascadeMultiplier] = useState(0);
-  const [showWin, setShowWin] = useState(null);
+  const [showWin, setShowWin] = useState(null); // small inline display
+  const [shareWin, setShareWin] = useState(null); // big win overlay
 
   // Free spins
   const [freeSpins, setFreeSpins] = useState(0);
@@ -180,7 +180,11 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         if (isFreeSpinMode) freeSpinTotalWinRef.current += totalWin;
         const winType = totalWin >= betAmt * 25 ? 'mega' : totalWin >= betAmt * 10 ? 'big' : 'win';
         addHistory([{ emoji: `⚡ Gates ${mult.toFixed(1)}x` }], totalWin - (isFreeSpinMode ? 0 : betAmt), winType, 'gates');
-        setShowWin({ amount: totalWin, multiplier: mult, shared: false });
+        // Big wins (5x+) get share overlay, but not during free spins (wait for summary)
+        if (!isFreeSpinMode && mult >= 5) {
+          setShareWin({ amount: totalWin, multiplier: mult });
+        }
+        setShowWin({ amount: totalWin, multiplier: mult });
       } else {
         setShowWin(null);
         if (!isFreeSpinMode) {
@@ -206,7 +210,9 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
               const totalFsWin = freeSpinTotalWinRef.current;
               setIsFreeSpinMode(false);
               setFreeSpinMultiplier(0);
-              setFreeSpinSummary({ totalWin: totalFsWin, bet: betAmt, shared: false });
+              const fsMult = betAmt > 0 ? totalFsWin / betAmt : 0;
+              setFreeSpinSummary({ totalWin: totalFsWin, bet: betAmt });
+              if (totalFsWin > 0) setShareWin({ amount: totalFsWin, multiplier: fsMult });
               reportSpin(username, betAmt, totalFsWin);
             }
             return next;
@@ -264,6 +270,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     setCascadeWin(0);
     setCascadeMultiplier(0);
     setShowWin(null);
+    setShareWin(null);
     setActiveOrbs([]);
     setWinPositions(new Set());
     setScatterPositions(new Set());
@@ -346,26 +353,10 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
 
   const handleBonusBuy = useCallback(() => { handleSpin(true); }, [handleSpin]);
 
-  const handleShareWin = useCallback(() => {
-    if (!showWin || showWin.shared) return;
-    const msg = formatWinMessage(username, showWin.amount, showWin.multiplier, showWin.multiplier >= 25 ? 'mega' : 'big', window.location.origin);
-    sendChatMessage(msg);
-    setShowWin(prev => prev ? { ...prev, shared: true } : null);
-    showToast('Shared in chat!', 'info');
-  }, [showWin, username, showToast]);
-
-  const handleDismissWin = useCallback(() => { setShowWin(null); }, []);
-
-  const handleShareFsSummary = useCallback(() => {
-    if (!freeSpinSummary || freeSpinSummary.shared) return;
-    const mult = freeSpinSummary.bet > 0 ? freeSpinSummary.totalWin / freeSpinSummary.bet : 0;
-    const msg = formatWinMessage(username, freeSpinSummary.totalWin, mult, mult >= 25 ? 'mega' : 'big', window.location.origin);
-    sendChatMessage(msg);
-    setFreeSpinSummary(prev => prev ? { ...prev, shared: true } : null);
-    showToast('Shared in chat!', 'info');
-  }, [freeSpinSummary, username, showToast]);
-
-  const handleDismissFsSummary = useCallback(() => { setFreeSpinSummary(null); }, []);
+  const handleDismissShare = useCallback(() => {
+    setShareWin(null);
+    setFreeSpinSummary(null);
+  }, []);
 
   // Autospin
   useEffect(() => {
@@ -469,47 +460,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         </AnimatePresence>
       </div>
 
-      {/* Big win overlay (5x+) */}
-      <AnimatePresence>
-        {showWin && showWin.multiplier >= 5 && phase === 'idle' && (
-          <motion.div
-            className="gates-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="gates-win-screen"
-              initial={{ scale: 0.5, y: 30 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            >
-              <button className="gates-win-close" onClick={handleDismissWin} aria-label="Close"><X size={16} /></button>
-              <div className="gates-win-badge">
-                {showWin.multiplier >= 25 ? 'MEGA WIN' : showWin.multiplier >= 10 ? 'BIG WIN' : 'NICE WIN'}
-              </div>
-              <motion.div
-                className="gates-win-amount-big"
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
-              >
-                +{showWin.amount.toLocaleString()}
-              </motion.div>
-              <div className="gates-win-mult">{showWin.multiplier.toFixed(1)}x</div>
-              <button
-                className={`gates-share-btn ${showWin.shared ? 'gates-share-done' : ''}`}
-                onClick={handleShareWin}
-                disabled={showWin.shared}
-              >
-                <MessageSquare size={16} />
-                {showWin.shared ? 'Shared!' : 'Share in Chat'}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Small win (below 5x) */}
+      {/* Small win display (inline, below 5x) */}
       <AnimatePresence>
         {showWin && showWin.multiplier < 5 && (
           <motion.div
@@ -542,39 +493,16 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </AnimatePresence>
 
-      {/* Free spins summary */}
+      {/* Win share overlay (big wins + free spin summary) */}
       <AnimatePresence>
-        {freeSpinSummary && (
-          <motion.div className="gates-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div
-              className="gates-win-screen"
-              initial={{ scale: 0.5 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-            >
-              <button className="gates-win-close" onClick={handleDismissFsSummary} aria-label="Close"><X size={16} /></button>
-              <Sparkles size={36} className="gates-zeus-icon" />
-              <h2 className="gates-overlay-title">FREE SPINS COMPLETE</h2>
-              <motion.div
-                className="gates-win-amount-big"
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
-              >
-                +{freeSpinSummary.totalWin.toLocaleString()}
-              </motion.div>
-              {freeSpinSummary.bet > 0 && (
-                <div className="gates-win-mult">{(freeSpinSummary.totalWin / freeSpinSummary.bet).toFixed(1)}x total</div>
-              )}
-              <button
-                className={`gates-share-btn ${freeSpinSummary.shared ? 'gates-share-done' : ''}`}
-                onClick={handleShareFsSummary}
-                disabled={freeSpinSummary.shared}
-              >
-                <MessageSquare size={16} />
-                {freeSpinSummary.shared ? 'Shared!' : 'Share in Chat'}
-              </button>
-            </motion.div>
-          </motion.div>
+        {shareWin && (
+          <WinShareOverlay
+            amount={shareWin.amount}
+            multiplier={shareWin.multiplier}
+            username={username}
+            game={freeSpinSummary ? 'Gates — Free Spins' : 'Gates of Olympus'}
+            onDismiss={handleDismissShare}
+          />
         )}
       </AnimatePresence>
 
@@ -582,7 +510,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         bet={bet}
         setBet={setBet}
         balance={balance}
-        spinning={busy || freeSpinIntro || !!freeSpinSummary}
+        spinning={busy || freeSpinIntro || !!freeSpinSummary || !!shareWin}
         onSpin={() => handleSpin(false)}
         onBonusBuy={handleBonusBuy}
         bonusMode={isFreeSpinMode}

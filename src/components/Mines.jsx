@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { deductPoints, addPoints } from '../utils/api';
 import { reportSpin } from '../utils/leaderboardApi';
 import { generateMines, getMultiplier, getNextMultiplier, getSafeChance, MINE_PRESETS, GRID_SIZE } from '../utils/minesLogic';
 import { MIN_BET, BET_PRESETS } from '../utils/constants';
 import { audio } from '../utils/audio';
+import WinShareOverlay from './WinShareOverlay';
 import { Bomb, Diamond, DollarSign } from 'lucide-react';
 
 const PHASES = { SETUP: 'setup', PLAYING: 'playing', RESULT: 'result' };
@@ -18,6 +19,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
   const [revealed, setRevealed] = useState(new Set());
   const [hitMine, setHitMine] = useState(null);
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
+  const [shareWin, setShareWin] = useState(null);
   const betRef = useRef(10);
 
   const handleStart = useCallback(async () => {
@@ -84,6 +86,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
           'mines'
         );
         showToast(`ALL CLEAR! +${(payout - betRef.current).toLocaleString()} pts (${mult}x)`, 'win');
+        if (mult >= 5) setShareWin({ amount: payout, multiplier: mult });
       }
     }
   }, [phase, revealed, mines, mineCount, username, setBalance, showToast, addHistory]);
@@ -104,6 +107,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
       'mines'
     );
     showToast(`Cashed out ${currentMultiplier}x — +${(payout - betRef.current).toLocaleString()} pts`, 'win');
+    if (currentMultiplier >= 5) setShareWin({ amount: payout, multiplier: currentMultiplier });
   }, [phase, revealed, currentMultiplier, username, setBalance, showToast, addHistory]);
 
   const handleNewGame = useCallback(() => {
@@ -112,6 +116,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
     setRevealed(new Set());
     setHitMine(null);
     setCurrentMultiplier(1);
+    setShareWin(null);
   }, []);
 
   const handleCustomBet = (e) => {
@@ -246,6 +251,19 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
           </button>
         )}
       </div>
+
+      {/* Win share overlay */}
+      <AnimatePresence>
+        {shareWin && (
+          <WinShareOverlay
+            amount={shareWin.amount}
+            multiplier={shareWin.multiplier}
+            username={username}
+            game="Mines"
+            onDismiss={() => setShareWin(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

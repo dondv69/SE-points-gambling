@@ -15,6 +15,7 @@ import { audio } from '../utils/audio';
 import { sendChatMessage, formatWinMessage, shouldAnnounce } from '../utils/chatBot';
 import { reportSpin } from '../utils/leaderboardApi';
 import { contributeToJackpot, winJackpot } from '../utils/jackpotApi';
+import WinShareOverlay from './WinShareOverlay';
 import { Trophy, Sparkles } from 'lucide-react';
 
 const BONUS_SPINS = 3;
@@ -33,6 +34,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
   const [bonusMultiplier, setBonusMultiplier] = useState(1);
   const [bonusSpinsLeft, setBonusSpinsLeft] = useState(0);
   const [bonusBet, setBonusBet] = useState(0);
+  const [shareWin, setShareWin] = useState(null); // { amount, multiplier, game }
 
   const stoppedReels = useRef(0);
   const currentResults = useRef([]);
@@ -117,10 +119,8 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       setBalance(prev => prev + payout);
       addPoints(username, payout).catch(() => {});
       showToast(`${gameName}: ${totalMultiplier}x — +${(payout - bonusBet).toLocaleString()} pts!`, payout > bonusBet * 5 ? 'mega' : 'win');
-      if (shouldAnnounce(payout, bonusBet, 'win')) {
-        const siteUrl = window.location.origin;
-        sendChatMessage(formatWinMessage(username, payout, totalMultiplier, 'mega', siteUrl));
-      }
+      // Show share overlay for bonus wins
+      setShareWin({ amount: payout, multiplier: totalMultiplier, game: `Slots — ${gameName}` });
     } else {
       showToast(`${gameName}: ${totalMultiplier}x — no win`, 'error');
     }
@@ -167,8 +167,10 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
             setLastWin({ ...winResult, amount: jackpotWin });
             addHistory(res, jackpotWin, 'jackpot');
             showToast(`JACKPOT! +${jackpotWin.toLocaleString()} pts!`, 'jackpot');
+            // Jackpot always auto-announces
             const siteUrl = window.location.origin;
             sendChatMessage(formatWinMessage(username, jackpotWin, null, 'jackpot', siteUrl));
+            setShareWin({ amount: jackpotWin, multiplier: jackpotWin / bet, game: 'Slots — JACKPOT' });
             broadcastChannel.current?.postMessage({ type: 'jackpot', username, amount: jackpotWin });
           }
         });
@@ -181,11 +183,11 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         const winType = effectiveMult >= 25 ? 'mega' : effectiveMult >= 10 ? 'big' : 'win';
         addHistory(res, winResult.winAmount - (inFreeSpins ? 0 : bet), winType === 'mega' ? 'mega' : 'win');
         showToast(`+${winResult.winAmount.toLocaleString()} pts!`, winType === 'mega' ? 'mega' : 'win');
-        if (shouldAnnounce(winResult.winAmount, bet, winType)) {
-          const siteUrl = window.location.origin;
-          sendChatMessage(formatWinMessage(username, winResult.winAmount, effectiveMult, winType, siteUrl));
-          broadcastChannel.current?.postMessage({ type: winType, username, amount: winResult.winAmount, multiplier: effectiveMult });
+        // Show share overlay for big wins (5x+), not during free spins (wait for bonus end)
+        if (!inFreeSpins && effectiveMult >= 5) {
+          setShareWin({ amount: winResult.winAmount, multiplier: effectiveMult, game: 'Slots' });
         }
+        broadcastChannel.current?.postMessage({ type: winType, username, amount: winResult.winAmount, multiplier: effectiveMult });
       } else {
         audio.loss();
         if (!inFreeSpins) {
@@ -306,6 +308,19 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
         {bonusStage === 'vault' && <VaultHeist bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Vault Heist', '🔓')} />}
         {bonusStage === 'golden' && <GoldenRain bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Golden Rain', '✨')} />}
         {bonusStage === 'scratch' && <ScratchCard bet={bonusBet} onComplete={(mult) => handleBonusGameComplete(mult, 'Scratch Card', '🎟️')} />}
+      </AnimatePresence>
+
+      {/* Win share overlay */}
+      <AnimatePresence>
+        {shareWin && (
+          <WinShareOverlay
+            amount={shareWin.amount}
+            multiplier={shareWin.multiplier}
+            username={username}
+            game={shareWin.game}
+            onDismiss={() => setShareWin(null)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

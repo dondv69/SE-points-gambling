@@ -2628,39 +2628,35 @@ input:focus-visible {
 
 /* Drop-in animation for new symbols */
 .gates-cell-drop {
-  animation: gates-drop-in 0.35s var(--ease-out) both;
+  animation: gates-drop-in 0.3s var(--ease-out) both;
 }
 
 @keyframes gates-drop-in {
   from {
-    transform: translateY(-120%) scale(0.7);
+    transform: translateY(-100%);
     opacity: 0;
   }
+  60% {
+    opacity: 1;
+  }
   to {
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
     opacity: 1;
   }
 }
 
-/* Winning highlight — pulse glow */
+/* Winning highlight — golden glow */
 .gates-cell-win {
   border-color: var(--discharge);
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(251, 191, 36, 0.12);
   box-shadow: 0 0 10px var(--discharge-glow), inset 0 0 6px var(--discharge-glow);
-  animation: gates-pulse 0.35s ease-in-out infinite alternate;
+  transform: scale(1.05);
 }
 
-@keyframes gates-pulse {
-  from { transform: scale(1); }
-  to { transform: scale(1.08); }
-}
-
-/* Pop/explode — shrink and fade out */
+/* Pop/explode — shrink and fade */
 .gates-cell-pop {
   transform: scale(0);
   opacity: 0;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1),
-              opacity 0.2s ease-out;
 }
 
 .gates-cell-scatter {
@@ -2947,3 +2943,101 @@ input:focus-visible {
 .gates-share-done:hover {
   background: var(--signal-go);
 }
+
+/* ===== WIN SHARE OVERLAY (shared across games) ===== */
+
+.win-share-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 11, 26, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.win-share-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  text-align: center;
+  padding: var(--sp-8) var(--sp-10);
+  background: linear-gradient(135deg, var(--panel), var(--raised));
+  border: 1px solid var(--discharge-glow);
+  border-radius: var(--r-xl);
+  position: relative;
+  min-width: 280px;
+  box-shadow: 0 0 40px var(--discharge-glow), 0 0 80px rgba(251, 191, 36, 0.1);
+}
+
+.win-share-close {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  background: none;
+  border: none;
+  color: var(--ink-tertiary);
+  cursor: pointer;
+  padding: var(--sp-1);
+  border-radius: var(--r-sm);
+  transition: color var(--t-fast);
+}
+.win-share-close:hover { color: var(--ink); }
+
+.win-share-badge {
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  color: var(--discharge);
+  background: rgba(251, 191, 36, 0.1);
+  padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--discharge-glow);
+}
+
+.win-share-amount {
+  font-family: 'Russo One', sans-serif;
+  font-size: 2.2rem;
+  color: var(--discharge);
+  text-shadow: 0 0 16px var(--discharge-glow);
+}
+
+.win-share-mult {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 1rem;
+  color: var(--ink-secondary);
+}
+
+.win-share-game {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 0.7rem;
+  color: var(--ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.win-share-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-6);
+  background: var(--phosphor);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md);
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background var(--t-fast), transform var(--t-fast);
+  margin-top: var(--sp-2);
+}
+.win-share-btn:hover:not(:disabled) {
+  background: var(--phosphor-dim);
+  transform: scale(1.03);
+}
+.win-share-btn:disabled { cursor: default; }
+.win-share-done { background: var(--signal-go); }
+.win-share-done:hover { background: var(--signal-go); }
