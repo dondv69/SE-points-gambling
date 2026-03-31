@@ -218,4 +218,29 @@ export const audio = {
       clickSynth.triggerAttackRelease('C4', '32n', Tone.now(), 0.3);
     } catch {}
   },
+
+  // Gates of Olympus: scatter thunder — escalating intensity
+  // scatterNum: which scatter this is (1-based), total: how many total
+  thunder(scatterNum, total) {
+    if (!initialized) return;
+    try {
+      const now = Tone.now();
+      const intensity = scatterNum / 4; // 0.25 → 1.0
+      // Low rumble
+      lossSynth.triggerAttackRelease('C2', '4n', now, 0.2 + intensity * 0.3);
+      // Mid crack
+      clickSynth.triggerAttackRelease('E3', '8n', now + 0.05, 0.3 + intensity * 0.2);
+      // High sizzle — gets louder with more scatters
+      if (scatterNum >= 2) {
+        winSynth.triggerAttackRelease('A4', '16n', now + 0.1, 0.15 + intensity * 0.2);
+      }
+      if (scatterNum >= 3) {
+        winSynth.triggerAttackRelease('E5', '16n', now + 0.15, 0.2 + intensity * 0.15);
+      }
+      // 4th scatter — triumphant chord
+      if (scatterNum >= 4) {
+        bonusSynth.triggerAttackRelease(['C4', 'E4', 'G4'], '4n', now + 0.2, 0.4);
+      }
+    } catch {}
+  },
 };

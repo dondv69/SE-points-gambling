@@ -34,6 +34,8 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
   const [grid, setGrid] = useState(() => generateGrid());
   const [winPositions, setWinPositions] = useState(new Set());
   const [newCells, setNewCells] = useState(new Set()); // cells that just dropped in
+  const [scatterPositions, setScatterPositions] = useState(new Set()); // scatter cells to highlight
+  const [scatterCount, setScatterCount] = useState(0);
   const [activeOrbs, setActiveOrbs] = useState([]);
   const [cascadeWin, setCascadeWin] = useState(0);
   const [cascadeMultiplier, setCascadeMultiplier] = useState(0);
@@ -214,6 +216,8 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         } else if (scatterCount >= 4) {
           try { audio.bonus(); } catch {}
           setShowWin(null);
+          setScatterPositions(new Set());
+          setScatterCount(0);
           setFreeSpinIntro(true);
           setTimeout(() => {
             setFreeSpinIntro(false);
@@ -262,6 +266,8 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     setShowWin(null);
     setActiveOrbs([]);
     setWinPositions(new Set());
+    setScatterPositions(new Set());
+    setScatterCount(0);
     spinBetRef.current = bet;
 
     const newGrid = isBonusBuy ? generateBonusBuyGrid() : generateGrid();
@@ -285,14 +291,57 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     precomputedOrbsRef.current = totalOrbs;
     stepIdxRef.current = 0;
 
-    setTimeout(() => {
-      setNewCells(new Set());
-      if (steps.length > 0) {
-        processStep();
-      } else {
-        setPhase('settling');
+    // After drop: highlight scatters with staggered thunder sounds
+    const dropTime = t('initialDrop', turbo);
+    if (totalScatters > 0) {
+      // Find scatter positions in the grid
+      const scatPos = new Set();
+      for (let c = 0; c < GRID_COLS; c++) {
+        for (let r = 0; r < GRID_ROWS; r++) {
+          if (newGrid[c][r].id === 'scatter') scatPos.add(`${c}-${r}`);
+        }
       }
-    }, t('initialDrop', turbo));
+
+      // Stagger thunder sounds — one per scatter, building tension
+      const scatArr = [...scatPos];
+      scatArr.forEach((_, i) => {
+        setTimeout(() => {
+          try { audio.thunder(i + 1, totalScatters); } catch {}
+        }, dropTime + i * 350);
+      });
+
+      // Show scatter highlights after drop
+      setTimeout(() => {
+        setScatterPositions(scatPos);
+        setScatterCount(totalScatters);
+      }, dropTime);
+
+      // Hold the scatter display, then continue to cascade
+      const scatterHoldTime = totalScatters * 350 + 400;
+      setTimeout(() => {
+        setNewCells(new Set());
+        if (totalScatters >= 4) {
+          // Don't clear scatter highlights yet — they'll clear when free spins trigger
+        } else {
+          setScatterPositions(new Set());
+          setScatterCount(0);
+        }
+        if (steps.length > 0) {
+          processStep();
+        } else {
+          setPhase('settling');
+        }
+      }, dropTime + scatterHoldTime);
+    } else {
+      setTimeout(() => {
+        setNewCells(new Set());
+        if (steps.length > 0) {
+          processStep();
+        } else {
+          setPhase('settling');
+        }
+      }, t('initialDrop', turbo));
+    }
   }, [busy, freeSpinIntro, freeSpinSummary, isFreeSpinMode, bet, balance, username, showToast, setBalance, turbo, processStep]);
 
   const handleBonusBuy = useCallback(() => { handleSpin(true); }, [handleSpin]);
@@ -360,7 +409,17 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
         )}
       </div>
 
-      {/* 6×5 Grid — CSS-driven animations, no per-cell AnimatePresence */}
+      {/* Scatter counter */}
+      {scatterCount > 0 && (
+        <div className={`gates-scatter-counter ${scatterCount >= 4 ? 'gates-scatter-trigger' : scatterCount >= 3 ? 'gates-scatter-hype' : ''}`}>
+          <Zap size={16} />
+          <span>SCATTER ×{scatterCount}</span>
+          {scatterCount >= 4 && <span className="gates-scatter-go">FREE SPINS!</span>}
+          {scatterCount === 3 && <span className="gates-scatter-close">SO CLOSE!</span>}
+        </div>
+      )}
+
+      {/* 6×5 Grid — CSS-driven animations */}
       <div className={`gates-grid ${phase === 'dropping' ? 'gates-grid-dropping' : ''}`}>
         {grid.map((col, c) => (
           <div key={c} className="gates-column">
@@ -369,11 +428,13 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
               const isWin = winPositions.has(key);
               const isPop = isWin && phase === 'popping';
               const isNew = newCells.has(key);
+              const isScatterHit = scatterPositions.has(key);
               let cls = 'gates-cell';
               if (isWin && !isPop) cls += ' gates-cell-win';
               if (isPop) cls += ' gates-cell-pop';
               if (isNew && (phase === 'dropping' || phase === 'cascading')) cls += ' gates-cell-drop';
               if (sym.id === 'scatter') cls += ' gates-cell-scatter';
+              if (isScatterHit) cls += ` gates-cell-scatter-hit gates-scatter-level-${Math.min(scatterCount, 4)}`;
               return (
                 <div
                   key={sym.instanceId}

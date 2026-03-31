@@ -2667,6 +2667,91 @@ input:focus-visible {
   background: rgba(251, 191, 36, 0.06);
 }
 
+/* Scatter hit — escalating glow based on count */
+.gates-cell-scatter-hit {
+  z-index: 2;
+  animation: gates-scatter-flash 0.6s ease-in-out infinite alternate;
+}
+
+.gates-scatter-level-1 {
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+}
+
+.gates-scatter-level-2 {
+  border-color: rgba(251, 191, 36, 0.6);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.3), 0 0 24px rgba(251, 191, 36, 0.1);
+}
+
+.gates-scatter-level-3 {
+  border-color: var(--discharge);
+  box-shadow: 0 0 16px var(--discharge-glow), 0 0 32px rgba(251, 191, 36, 0.15);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.gates-scatter-level-4 {
+  border-color: var(--discharge);
+  box-shadow: 0 0 20px var(--discharge-glow), 0 0 40px rgba(251, 191, 36, 0.25), 0 0 60px rgba(251, 191, 36, 0.1);
+  background: rgba(251, 191, 36, 0.18);
+}
+
+@keyframes gates-scatter-flash {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.4); }
+}
+
+/* Scatter counter */
+.gates-scatter-counter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-md);
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: var(--discharge);
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  animation: gates-counter-appear 0.3s var(--ease-out);
+}
+
+.gates-scatter-hype {
+  border-color: var(--discharge);
+  background: rgba(251, 191, 36, 0.12);
+  box-shadow: 0 0 12px var(--discharge-glow);
+  animation: gates-counter-appear 0.3s var(--ease-out), gates-counter-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.gates-scatter-trigger {
+  border-color: var(--discharge);
+  background: rgba(251, 191, 36, 0.18);
+  box-shadow: 0 0 20px var(--discharge-glow), 0 0 40px rgba(251, 191, 36, 0.15);
+  animation: gates-counter-appear 0.3s var(--ease-out), gates-counter-pulse 0.35s ease-in-out infinite alternate;
+}
+
+.gates-scatter-close {
+  color: var(--signal-hot);
+  margin-left: var(--sp-2);
+  font-size: 0.65rem;
+}
+
+.gates-scatter-go {
+  color: var(--signal-go);
+  margin-left: var(--sp-2);
+  font-size: 0.65rem;
+}
+
+@keyframes gates-counter-appear {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes gates-counter-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
 .gates-symbol {
   user-select: none;
   line-height: 1;
