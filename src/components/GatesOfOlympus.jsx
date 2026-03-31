@@ -292,7 +292,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     setGrid(newGrid);
     setPhase('dropping');
 
-    const { steps, finalGrid, totalScatters, totalBaseWin, totalOrbs } = simulateFullSpin(newGrid, bet);
+    const { steps, finalGrid, totalScatters, totalBaseWin, totalOrbs } = simulateFullSpin(newGrid, bet, isFreeSpinMode);
     stepsRef.current = steps;
     finalGridRef.current = finalGrid;
     totalScattersRef.current = totalScatters;

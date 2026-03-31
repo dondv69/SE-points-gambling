@@ -29,9 +29,9 @@ const INFO = {
       ['💛 ×12+', '12×'],
       ['🔴/💙 ×8+', '0.6×–7×'],
       ['💜/💚 ×8+', '0.4×–5×'],
-      ['⚡ ×4+', 'Free Spins (12)'],
+      ['⚡ ×4+', 'Free Spins (15)'],
     ],
-    notes: '6×5 grid, Pay Anywhere — 8+ matching symbols anywhere = win. Winning symbols vanish and new ones tumble in. Multiplier orbs (2×–10×) can appear during tumbles. In Free Spins, multipliers accumulate! High volatility — many dead spins but bigger wins when you hit. Bonus Buy: 100× bet.',
+    notes: '6×5 grid, Pay Anywhere — 8+ matching symbols anywhere = win. Winning symbols vanish and new ones tumble in. Multiplier orbs appear during tumbles (more frequent and bigger in Free Spins!). In Free Spins, multipliers accumulate across all spins! Bonus Buy: 100× bet.',
   },
   blackjack: {
     title: 'Blackjack',

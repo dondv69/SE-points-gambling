@@ -2,7 +2,7 @@
 
 export const GRID_COLS = 6;
 export const GRID_ROWS = 5;
-export const FREE_SPINS_COUNT = 12;
+export const FREE_SPINS_COUNT = 15;
 export const FREE_SPINS_RETRIGGER = 5;
 export const GATES_BONUS_BUY = 100;
 
@@ -21,29 +21,40 @@ export const GATES_SYMBOLS = [
 
 export const SCATTER = { id: 'scatter', emoji: '⚡', weight: 3 };
 
-// Pay table: [8+, 9+, 10+, 11+, 12+] multipliers of total bet — tuned for ~95% RTP
+// Pay table: [8+, 9+, 10+, 11+, 12+] multipliers of total bet
+// Base game ~52% RTP, free spins make up the rest → total ~97%
 const PAY_TABLE = {
-  0: [0.4, 0.8, 1.5, 3, 5],       // purple/green
-  1: [0.6, 1.2, 2.2, 4.5, 7],     // red/blue
-  2: [0.7, 1.5, 3, 7, 12],        // yellow
-  3: [1, 2.2, 4.5, 9, 16],        // hourglass
-  4: [1.5, 3, 7, 14, 25],         // ring
-  5: [2.2, 4.5, 10, 20, 35],      // chalice
-  6: [4.5, 7.5, 15, 30, 50],      // crown
+  0: [0.2, 0.5, 1, 1.8, 3],       // purple/green
+  1: [0.3, 0.7, 1.4, 2.8, 4.5],   // red/blue
+  2: [0.4, 0.9, 1.8, 4.5, 7],     // yellow
+  3: [0.5, 1.3, 2.8, 6, 10],      // hourglass
+  4: [0.8, 1.8, 4.5, 9, 16],      // ring
+  5: [1.2, 2.8, 6, 13, 22],       // chalice
+  6: [2.5, 4.5, 9, 20, 35],       // crown
 };
 
 // Scatter payouts (× bet): 4=1x, 5=2x, 6=25x
 const SCATTER_PAY = { 4: 1, 5: 2, 6: 25 };
 
-// Multiplier orb weights — tuned for ~95% RTP
-const ORB_VALUES = [
+// Base game orbs — rare, small values
+const BASE_ORB_VALUES = [
   { value: 2,   weight: 50 },
   { value: 3,   weight: 25 },
   { value: 5,   weight: 10 },
   { value: 10,  weight: 3 },
 ];
+const BASE_ORB_CHANCE = 0.03;
 
-const ORB_CHANCE = 0.03; // 3% per tumble
+// Free spin orbs — frequent, bigger values (this is where the big wins come from)
+const FS_ORB_VALUES = [
+  { value: 2,   weight: 30 },
+  { value: 3,   weight: 25 },
+  { value: 5,   weight: 20 },
+  { value: 10,  weight: 10 },
+  { value: 25,  weight: 4 },
+  { value: 50,  weight: 1 },
+];
+const FS_ORB_CHANCE = 0.24;
 
 // Unique ID counter for AnimatePresence keys
 let nextId = 1;
@@ -177,14 +188,16 @@ export function cascadeGrid(grid, winPositions) {
   return newGrid;
 }
 
-// Generate multiplier orb for a tumble — single orb only
-export function generateOrbs() {
-  if (Math.random() > ORB_CHANCE) return [];
+// Generate multiplier orb for a tumble
+export function generateOrbs(isFreeSpinMode = false) {
+  const chance = isFreeSpinMode ? FS_ORB_CHANCE : BASE_ORB_CHANCE;
+  if (Math.random() > chance) return [];
 
-  const totalWeight = ORB_VALUES.reduce((s, o) => s + o.weight, 0);
+  const orbPool = isFreeSpinMode ? FS_ORB_VALUES : BASE_ORB_VALUES;
+  const totalWeight = orbPool.reduce((s, o) => s + o.weight, 0);
   let r = Math.random() * totalWeight;
   let value = 2;
-  for (const ov of ORB_VALUES) {
+  for (const ov of orbPool) {
     r -= ov.weight;
     if (r <= 0) { value = ov.value; break; }
   }
@@ -205,7 +218,7 @@ export function getScatterPay(count) {
 
 // Simulate entire cascade chain from initial grid
 // Returns array of steps: [{ grid, wins, winPositions, orbs, winAmount, scatterCount }]
-export function simulateFullSpin(initialGrid, bet) {
+export function simulateFullSpin(initialGrid, bet, isFreeSpinMode = false) {
   const steps = [];
   let grid = initialGrid;
   let cascadeNum = 0;
@@ -228,8 +241,8 @@ export function simulateFullSpin(initialGrid, bet) {
       stepWin += w.multiplier * bet;
     }
 
-    // Generate orbs
-    const orbs = generateOrbs();
+    // Generate orbs (more frequent and bigger in free spins)
+    const orbs = generateOrbs(isFreeSpinMode);
 
     steps.push({
       grid: grid.map(col => col.map(s => ({ ...s }))), // deep copy
