@@ -120,6 +120,8 @@ export default function App() {
     balance, setBalance, username, showToast, addHistory,
   };
 
+  const playDisclaimer = 'Free StreamElements and Twitch points only. No cash value, no withdrawals, and no real-money gambling.';
+
   if (configError) {
     return (
       <div className="app">
@@ -173,12 +175,15 @@ export default function App() {
                 <div className="app-header-right">
                   <div className="deposit-wrapper">
                     <button className="deposit-btn-nav" onClick={() => setShowDeposit(prev => !prev)}>
-                      <Gift size={15} /> Get Points
+                      <Gift size={15} /> Get Play Points
                     </button>
                     {showDeposit && (
                       <div className="deposit-dropdown">
                         <button className="deposit-close" onClick={() => setShowDeposit(false)} aria-label="Close"><X size={14} /></button>
-                        <p className="deposit-info"><strong>1,000 pts</strong> per sub/gift sub<br/><strong>200 pts</strong> per 100 bits</p>
+                        <p className="deposit-info"><strong>1,000 play pts</strong> per sub/gift sub<br/><strong>200 play pts</strong> per 100 bits</p>
+                        <p className="deposit-note">
+                          Support unlocks extra points for this stream only. They cannot be withdrawn or exchanged for money.
+                        </p>
                         <div className="deposit-links">
                           <a href={`https://www.twitch.tv/subs/${CHANNEL_NAME}`} target="_blank" rel="noopener noreferrer" className="deposit-link deposit-sub">
                             <Heart size={14} /> Subscribe
@@ -200,6 +205,10 @@ export default function App() {
                   {avatar && <img src={avatar} alt="" className="header-avatar" />}
                   <span className="header-user"><User size={16} /> {displayName}</span>
                 </div>
+              </div>
+
+              <div className="play-disclaimer-bar" role="note" aria-label="Free points disclaimer">
+                <strong>Free play only.</strong> {playDisclaimer}
               </div>
 
               <div className="app-layout">
