@@ -138,6 +138,21 @@ input:focus-visible {
   border-bottom: 1px solid var(--bezel);
 }
 
+.play-disclaimer-bar {
+  padding: var(--sp-2) var(--sp-6);
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.12), rgba(124, 58, 237, 0.08));
+  border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+  color: var(--ink-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.play-disclaimer-bar strong {
+  color: var(--current);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
 .app-title {
   display: flex;
   align-items: center;
@@ -242,6 +257,17 @@ input:focus-visible {
 
 .deposit-info strong {
   color: var(--discharge);
+}
+
+.deposit-note {
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.18);
+  border-radius: var(--r-md);
+  color: var(--ink-secondary);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 .deposit-links {
@@ -518,6 +544,50 @@ input:focus-visible {
   line-height: 1.6;
 }
 
+.login-disclaimer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(124, 58, 237, 0.08));
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: var(--r-lg);
+}
+
+.login-disclaimer-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--current);
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.login-disclaimer p {
+  color: var(--ink-secondary);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.login-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  color: var(--ink-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.login-ack input {
+  margin-top: 2px;
+  accent-color: var(--phosphor);
+}
+
 .setup-label {
   display: flex;
   flex-direction: column;
@@ -595,7 +665,6 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   background: #9146FF;
-  text-decoration: none;
   font-family: 'Russo One', sans-serif;
 }
 
@@ -2504,6 +2573,11 @@ input:focus-visible {
 @media (max-width: 768px) {
   .app-header {
     padding: var(--sp-2) var(--sp-4);
+  }
+
+  .play-disclaimer-bar {
+    padding: var(--sp-2) var(--sp-4);
+    font-size: 0.74rem;
   }
 
   .layout-slots {
