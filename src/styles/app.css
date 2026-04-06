@@ -1010,6 +1010,7 @@ input:focus-visible {
 .spin-row {
   display: flex;
   gap: var(--sp-3);
+  align-items: stretch;
 }
 
 /* SIGNATURE: Spin button — charged, ready to discharge */
@@ -1032,6 +1033,7 @@ input:focus-visible {
   letter-spacing: 3px;
   position: relative;
   overflow: hidden;
+  min-height: 55px;
 }
 
 /* Current-flow shimmer across the button — signature */
@@ -1083,6 +1085,7 @@ input:focus-visible {
 .bonus-buy-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--sp-2);
   padding: var(--sp-4) var(--sp-5);
   background: var(--panel);
@@ -1095,6 +1098,7 @@ input:focus-visible {
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-out);
   white-space: nowrap;
+  min-height: 55px;
 }
 
 .bonus-buy-btn:hover:not(:disabled) {
@@ -2607,6 +2611,7 @@ input:focus-visible {
   .spin-btn {
     font-size: 1rem;
     padding: var(--sp-3) var(--sp-6);
+    min-height: 49px;
   }
 
   .bonus-title {
@@ -2625,12 +2630,31 @@ input:focus-visible {
   width: 100%;
 }
 
+.gates-status-lane {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gates-status-lane-top {
+  min-height: 52px;
+}
+
+.gates-status-lane-scatter {
+  min-height: 34px;
+}
+
+.gates-status-lane-win {
+  min-height: 52px;
+}
+
 .gates-info-bar {
   width: 100%;
-  min-height: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--sp-1);
 }
 
@@ -2853,6 +2877,7 @@ input:focus-visible {
 .gates-win-display {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-5);
   background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 191, 36, 0.05));
