@@ -38,6 +38,8 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
   const stoppedReels = useRef(0);
   const currentResults = useRef([]);
+  const actualBetRef = useRef(0);
+  const betIdRef = useRef(null);
   const autoSpinRef = useRef(false);
   const broadcastChannel = useRef(
     typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('streamslots_wins') : null
@@ -57,6 +59,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     await audio.ensure();
 
     const actualBet = inFreeSpins ? 0 : (isBonusBuy ? bet * BONUS_BUY_MULTIPLIER : bet);
+    actualBetRef.current = actualBet;
 
     if (!inFreeSpins) {
       let currentBalance = balance;
@@ -87,7 +90,8 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
     if (actualBet > 0) {
       try {
-        await deductPoints(username, actualBet);
+        const deductResult = await deductPoints(username, actualBet, 'slots');
+        betIdRef.current = deductResult.betId;
       } catch {
         setBalance(prev => prev + actualBet);
         setSpinning(false);
@@ -117,7 +121,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     setBonusMultiplier(multiplier);
     setBonusStage('freespins');
     setBonusSpinsLeft(BONUS_SPINS);
-    showToast(`${multiplier}x multiplier! ${BONUS_SPINS} free spins!`, 'bonus');
+    showToast(`${Math.floor(multiplier)}x multiplier! ${BONUS_SPINS} free spins!`, 'bonus');
   }, [showToast]);
 
   // Generic bonus game complete — all instant-payout bonus games use this
@@ -125,7 +129,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
     const payout = Math.floor(bonusBet * totalMultiplier);
     if (payout > 0) {
       setBalance(prev => prev + payout);
-      addPoints(username, payout).catch(() => {});
+      addPoints(username, payout, 'slots', betIdRef.current).catch(() => {});
       showToast(`${gameName}: ${totalMultiplier}x — +${(payout - bonusBet).toLocaleString()} pts!`, payout > bonusBet * 5 ? 'mega' : 'win');
       // Show share overlay for bonus wins
       setShareWin({ amount: payout, multiplier: totalMultiplier, game: `Slots — ${gameName}` });
@@ -151,7 +155,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       if (isBonusTriggered(res)) {
         audio.bonus();
         setAutoSpin(false);
-        setBonusBet(bet);
+        setBonusBet(actualBetRef.current);
         setBonusStage('picker');
         return;
       }
@@ -170,7 +174,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
           if (data) {
             const jackpotWin = inFreeSpins ? Math.floor(data.won * bonusMultiplier) : data.won;
             setBalance(prev => prev + jackpotWin);
-            addPoints(username, jackpotWin).catch(() => {});
+            addPoints(username, jackpotWin, 'slots', betIdRef.current).catch(() => {});
             setJackpot(data.jackpot);
             setLastWin({ ...winResult, amount: jackpotWin });
             addHistory(res, jackpotWin, 'jackpot');
@@ -185,7 +189,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       } else if (winResult.winAmount > 0) {
         audio.win(winResult.multiplier);
         setBalance(prev => prev + winResult.winAmount);
-        addPoints(username, winResult.winAmount).catch(() => {});
+        addPoints(username, winResult.winAmount, 'slots', betIdRef.current).catch(() => {});
         setLastWin({ ...winResult, amount: winResult.winAmount });
         const effectiveMult = inFreeSpins ? winResult.multiplier * bonusMultiplier : winResult.multiplier;
         const winType = effectiveMult >= 25 ? 'mega' : effectiveMult >= 10 ? 'big' : 'win';
@@ -209,7 +213,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
       }
 
       if (!inFreeSpins) {
-        reportSpin(username, bet, winResult.winAmount || 0);
+        reportSpin(username, actualBetRef.current, winResult.winAmount || 0);
       }
 
       if (isNearMiss(res)) {

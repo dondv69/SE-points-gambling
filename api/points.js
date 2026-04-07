@@ -1,6 +1,9 @@
+import { ensureTables, getDb } from './db.js';
+
 const SE_BASE = 'https://api.streamelements.com/kappa/v2';
 
 export default async function handler(req, res) {
+  await ensureTables();
   const jwt = process.env.SE_JWT;
   const channelName = process.env.CHANNEL_NAME;
 
@@ -39,13 +42,29 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'Failed to fetch points' });
     }
   } else if (req.method === 'PUT') {
-    // Update points
-    const { amount } = req.body || {};
+    const { amount, game } = req.body || {};
     if (typeof amount !== 'number') return res.status(400).json({ error: 'Missing amount' });
+    if (amount > 0) return res.status(403).json({ error: 'Direct point additions are blocked. Use /api/payout.' });
+    if (!game) return res.status(400).json({ error: 'Missing game' });
 
-    const endpoint = amount >= 0
-      ? `${SE_BASE}/points/${channelId}/${sanitized}/${Math.abs(amount)}`
-      : `${SE_BASE}/points/${channelId}/${sanitized}/-${Math.abs(amount)}`;
+    const validGames = ['slots', 'gates', 'blackjack', 'roulette', 'mines'];
+    if (!validGames.includes(game)) return res.status(400).json({ error: 'Invalid game' });
+
+    const db = getDb();
+
+    // Check for recent bets to prevent duplicate deductions
+    const recentBets = await db`
+      SELECT COUNT(*) as count FROM bets 
+      WHERE username = ${sanitized} 
+      AND game = ${game}
+      AND status = 'active'
+      AND created_at > NOW() - INTERVAL '5 seconds'
+    `;
+    if (recentBets[0].count > 5) {
+      return res.status(429).json({ error: 'Too many bets' });
+    }
+
+    const endpoint = `${SE_BASE}/points/${channelId}/${sanitized}/-${Math.abs(amount)}`;
 
     try {
       const response = await fetch(endpoint, {
@@ -59,8 +78,16 @@ export default async function handler(req, res) {
         const text = await response.text().catch(() => '');
         return res.status(response.status).json({ error: `SE API error: ${text}` });
       }
+      
+      // Create bet record for payout verification
+      const betResult = await db`
+        INSERT INTO bets (username, amount, game, status)
+        VALUES (${sanitized}, ${Math.abs(amount)}, ${game}, 'active')
+        RETURNING id
+      `;
+      
       const data = await response.json();
-      res.json(data);
+      res.json({ ...data, betId: betResult[0].id });
     } catch {
       res.status(500).json({ error: 'Failed to update points' });
     }

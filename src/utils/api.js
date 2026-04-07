@@ -15,21 +15,23 @@ export async function fetchPoints(username) {
   return data.points ?? 0;
 }
 
-export async function deductPoints(username, amount) {
+export async function deductPoints(username, amount, game) {
+  if (!game) throw new Error('Game type required');
   const res = await fetch(`/api/points?username=${encodeURIComponent(username)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: -Math.abs(amount) }),
+    body: JSON.stringify({ amount: -Math.abs(amount), game }),
   });
   if (!res.ok) throw new Error('Failed to deduct points');
   return res.json();
 }
 
-export async function addPoints(username, amount) {
-  const res = await fetch(`/api/points?username=${encodeURIComponent(username)}`, {
-    method: 'PUT',
+export async function addPoints(username, amount, game = 'unknown', betId) {
+  if (!betId) throw new Error('Bet ID required for payout');
+  const res = await fetch('/api/payout', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: Math.abs(amount) }),
+    body: JSON.stringify({ username, amount: Math.abs(amount), game, betId }),
   });
   if (!res.ok) throw new Error('Failed to add points');
   return res.json();

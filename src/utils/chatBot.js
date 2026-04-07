@@ -21,7 +21,7 @@ export function formatWinMessage(username, amount, multiplier, type, siteUrl) {
   if (type === 'jackpot') {
     msg += ' hitting the JACKPOT!';
   } else if (multiplier) {
-    msg += ` (${multiplier}x)!`;
+    msg += ` (${Math.floor(multiplier)}x)!`;
   }
 
   if (siteUrl) {

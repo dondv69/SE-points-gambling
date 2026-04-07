@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FastForward } from 'lucide-react';
-import { deductPoints, addPoints, fetchPoints } from '../utils/api';
+import { coinflipStart, coinflipDouble, coinflipCashout } from '../utils/coinflipApi';
+import { fetchPoints } from '../utils/api';
 import { reportSpin } from '../utils/leaderboardApi';
 import { MIN_BET, BET_PRESETS } from '../utils/constants';
 import { audio } from '../utils/audio';
@@ -32,6 +33,11 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
   const [busy, setBusy] = useState(false);
   const [flipKey, setFlipKey] = useState(0);
   const [turbo, setTurbo] = useState(false);
+  const [doubleStreak, setDoubleStreak] = useState(0);
+
+  const betIdRef = useRef(null);
+  const potRef = useRef(0);
+  const originalBetRef = useRef(0);
 
   const handleCustomBet = (e) => {
     const val = e.target.value.replace(/[^0-9]/g, '');
@@ -48,84 +54,132 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
 
   const handleFlip = useCallback(async () => {
     if (busy) return;
-    if (!choice) { showToast('Pick Heads or Tails!', 'error'); return; }
     if (bet < MIN_BET) { showToast('Minimum bet is ' + MIN_BET, 'error'); return; }
     if (bet > MAX_BET) { showToast('Maximum bet is ' + MAX_BET.toLocaleString(), 'error'); return; }
-    {
-      let currentBalance = balance;
-      try {
-        const fresh = await fetchPoints(username);
-        setBalance(fresh);
-        currentBalance = fresh;
-      } catch {}
-      if (currentBalance < bet) { showToast('Not enough points!', 'error'); return; }
-    }
 
     setBusy(true);
-    setBalance((prev) => prev - bet);
 
     try {
-      await deductPoints(username, bet);
-    } catch {
-      setBalance((prev) => prev + bet);
-      setBusy(false);
-      showToast('API error — bet refunded', 'error');
-      return;
-    }
+      const fresh = await fetchPoints(username);
+      setBalance(fresh);
+      if (fresh < bet) {
+        setBusy(false);
+        showToast('Not enough points!', 'error');
+        return;
+      }
+    } catch {}
 
+    setBalance((prev) => prev - bet);
     await audio.ensure();
 
-    const coinResult = Math.random() < 0.5 ? 'heads' : 'tails';
-    const didWin = coinResult === choice;
+    try {
+      const data = await coinflipStart(username, bet, choice);
+      originalBetRef.current = bet;
 
-    setResult(coinResult);
-    setWon(didWin);
-    setPhase(PHASES.FLIPPING);
-    setFlipKey((k) => k + 1);
-  }, [busy, choice, bet, balance, username, setBalance, showToast]);
+      setResult(data.result);
+      setWon(data.won);
+      potRef.current = data.pot;
+      betIdRef.current = data.betId;
+      setDoubleStreak(0);
+
+      setFlipKey((k) => k + 1);
+      setPhase(PHASES.FLIPPING);
+    } catch (err) {
+      setBalance((prev) => prev + bet);
+      setBusy(false);
+      showToast(err.message || 'Flip failed', 'error');
+    }
+  }, [busy, choice, bet, username, setBalance, showToast]);
 
   const handleFlipComplete = useCallback(async () => {
     if (phase !== PHASES.FLIPPING) return;
 
     if (won) {
-      const payout = bet * 2;
-      try {
-        await addPoints(username, payout);
-        setBalance((prev) => prev + payout);
-      } catch {
-        showToast('Failed to add winnings', 'error');
-      }
-      audio.win(2);
+      audio.win(potRef.current / originalBetRef.current);
     } else {
       audio.loss();
     }
 
     try {
-      await reportSpin(username, bet, won ? bet * 2 : 0);
+      await reportSpin(username, originalBetRef.current, won ? potRef.current : 0);
     } catch {}
 
     const emoji = won ? '🪙 ✓' : '🪙 ✗';
-    const net = won ? bet : -bet;
+    const streakLabel = doubleStreak > 0 ? ` (${doubleStreak}× double)` : '';
+    const net = won ? potRef.current - originalBetRef.current : -originalBetRef.current;
     addHistory(
-      [{ emoji: `${emoji} ${choice} → ${result}` }],
+      [{ emoji: `${emoji} ${choice} → ${result}${streakLabel}` }],
       net,
       won ? 'win' : 'loss',
       'coinflip',
     );
-    showToast(
-      won ? `WIN! +${bet.toLocaleString()} pts` : `Landed ${result} — -${bet.toLocaleString()} pts`,
-      won ? 'win' : 'error',
-    );
+
+    if (won) {
+      showToast(
+        doubleStreak > 0
+          ? `DOUBLE WIN! Pot: ${potRef.current.toLocaleString()} pts`
+          : `WIN! Pot: ${potRef.current.toLocaleString()} pts`,
+        'win',
+      );
+    } else {
+      showToast(
+        doubleStreak > 0
+          ? `BUSTED on double! Lost ${originalBetRef.current.toLocaleString()} pts`
+          : `Landed ${result} — -${originalBetRef.current.toLocaleString()} pts`,
+        'error',
+      );
+    }
 
     setPhase(PHASES.RESULT);
     setBusy(false);
-  }, [won, bet, choice, result, username, setBalance, showToast, addHistory]);
+  }, [won, choice, result, doubleStreak, username, showToast, addHistory]);
+
+  const handleCashOut = useCallback(async () => {
+    if (!betIdRef.current) return;
+    try {
+      const data = await coinflipCashout(betIdRef.current, username);
+      setBalance((prev) => prev + data.payout);
+    } catch (err) {
+      showToast(err.message || 'Cashout failed', 'error');
+    }
+    handleNewGame();
+  }, [username, setBalance, showToast]);
+
+  const handleDoubleOrNothing = useCallback(async () => {
+    if (busy || !betIdRef.current) return;
+    setBusy(true);
+    await audio.ensure();
+
+    try {
+      const data = await coinflipDouble(betIdRef.current, username);
+      setResult(data.result);
+      setWon(data.won);
+      potRef.current = data.pot;
+      if (data.won) setDoubleStreak(data.streak);
+
+      setFlipKey((k) => k + 1);
+      setPhase(PHASES.FLIPPING);
+    } catch (err) {
+      setBusy(false);
+      showToast(err.message || 'Double failed', 'error');
+      if (err.message?.includes('expired')) {
+        try {
+          const fresh = await fetchPoints(username);
+          setBalance(fresh);
+        } catch {}
+        handleNewGame();
+      }
+    }
+  }, [busy, username, setBalance, showToast]);
 
   const handleNewGame = () => {
     setPhase(PHASES.IDLE);
     setResult(null);
     setWon(null);
     setBusy(false);
+    setDoubleStreak(0);
+    betIdRef.current = null;
+    potRef.current = 0;
   };
 
   const flipping = phase === PHASES.FLIPPING;
@@ -184,7 +238,17 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
               color: won ? 'var(--signal-go)' : 'var(--signal-stop)',
             }}
           >
-            {won ? `WIN! +${bet.toLocaleString()}` : `LOSE — -${bet.toLocaleString()}`}
+            {won ? (
+              <>
+                {doubleStreak > 0 && (
+                  <div style={styles.streakBadge}>{doubleStreak}× DOUBLE</div>
+                )}
+                <div>WIN! {potRef.current.toLocaleString()} pts</div>
+                <div style={styles.netLabel}>+{(potRef.current - originalBetRef.current).toLocaleString()} net</div>
+              </>
+            ) : (
+              `LOSE — -${originalBetRef.current.toLocaleString()}`
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -225,10 +289,10 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
           <button
             style={{
               ...styles.flipBtn,
-              opacity: balance < bet || bet < MIN_BET || bet > MAX_BET || !choice ? 0.4 : 1,
+              opacity: balance < bet || bet < MIN_BET || bet > MAX_BET ? 0.4 : 1,
             }}
             onClick={handleFlip}
-            disabled={balance < bet || bet < MIN_BET || bet > MAX_BET || busy || !choice}
+            disabled={balance < bet || bet < MIN_BET || bet > MAX_BET || busy}
           >
             FLIP {bet.toLocaleString()}
           </button>
@@ -247,9 +311,20 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
 
       {showResult && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-          <button style={styles.flipBtn} onClick={handleNewGame}>
-            FLIP AGAIN
-          </button>
+          {won ? (
+            <>
+              <button style={styles.cashOutBtn} onClick={handleCashOut}>
+                CASH OUT {potRef.current.toLocaleString()}
+              </button>
+              <button style={styles.doubleBtn} onClick={handleDoubleOrNothing}>
+                DOUBLE OR NOTHING ({potRef.current.toLocaleString()})
+              </button>
+            </>
+          ) : (
+            <button style={styles.flipBtn} onClick={handleNewGame}>
+              FLIP AGAIN
+            </button>
+          )}
           <button
             style={{
               ...styles.optionBtn,
@@ -452,5 +527,45 @@ const styles = {
     background: 'var(--discharge)',
     color: '#1e1e2e',
     borderColor: 'var(--discharge)',
+  },
+  streakBadge: {
+    fontFamily: "'Chakra Petch', sans-serif",
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: 1,
+    color: 'var(--discharge)',
+    marginBottom: 4,
+  },
+  netLabel: {
+    fontFamily: "'Chakra Petch', sans-serif",
+    fontSize: 13,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  cashOutBtn: {
+    width: '100%',
+    padding: 'var(--sp-3) var(--sp-6)',
+    borderRadius: 'var(--r-md)',
+    border: 'none',
+    background: 'var(--signal-go)',
+    color: '#1e1e2e',
+    fontFamily: "'Russo One', sans-serif",
+    fontSize: 16,
+    letterSpacing: 1,
+    cursor: 'pointer',
+    transition: 'opacity var(--t-fast)',
+  },
+  doubleBtn: {
+    width: '100%',
+    padding: 'var(--sp-3) var(--sp-6)',
+    borderRadius: 'var(--r-md)',
+    border: '2px solid var(--discharge)',
+    background: 'rgba(255, 204, 0, 0.08)',
+    color: 'var(--discharge)',
+    fontFamily: "'Russo One', sans-serif",
+    fontSize: 14,
+    letterSpacing: 1,
+    cursor: 'pointer',
+    transition: 'all var(--t-fast)',
   },
 };

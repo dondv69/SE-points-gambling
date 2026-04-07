@@ -107,6 +107,13 @@ export default function App() {
     setBalRefreshing(false);
   }, [balRefreshing, username]);
 
+  const updateBalance = useCallback(async (action, amount) => {
+    // This is a placeholder that ensures all balance updates go through server
+    // Components should call the API directly, then call refreshBalance
+    console.warn('Direct balance updates should go through server APIs');
+    return refreshBalance();
+  }, [refreshBalance, username]);
+
   const addHistory = useCallback((symbols, net, type, game = 'slots') => {
     const entry = { id: ++historyId, symbols, net, type, game, timestamp: Date.now() };
     setHistory(prev => [entry, ...prev].slice(0, HISTORY_MAX));

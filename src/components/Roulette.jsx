@@ -34,6 +34,7 @@ export default function Roulette({ balance, setBalance, username, showToast, add
   // Spinning numbers animation
   const [displayNumber, setDisplayNumber] = useState(null);
   const spinIntervalRef = useRef(null);
+  const betIdRef = useRef(null);
 
   const totalBet = bets.reduce((sum, b) => sum + b.amount, 0);
 
@@ -79,7 +80,8 @@ export default function Roulette({ balance, setBalance, username, showToast, add
     setPhase('spinning');
 
     try {
-      await deductPoints(username, totalBet);
+      const deductResult = await deductPoints(username, totalBet, 'roulette');
+      betIdRef.current = deductResult.betId;
     } catch {
       setBalance(prev => prev + totalBet);
       setPhase('betting');
@@ -111,7 +113,7 @@ export default function Roulette({ balance, setBalance, username, showToast, add
           if (totalPayout > 0) {
             setBalance(prev => prev + totalPayout);
             audio.win(totalPayout / totalBet);
-            try { await addPoints(username, totalPayout); } catch {}
+            try { await addPoints(username, totalPayout, 'roulette', betIdRef.current); } catch {}
           } else {
             audio.loss();
           }
@@ -151,7 +153,7 @@ export default function Roulette({ balance, setBalance, username, showToast, add
             if (totalPayout > 0) {
               setBalance(prev => prev + totalPayout);
               audio.win(totalPayout / totalBet);
-              try { await addPoints(username, totalPayout); } catch {}
+              try { await addPoints(username, totalPayout, 'roulette', betIdRef.current); } catch {}
             } else {
               audio.loss();
             }

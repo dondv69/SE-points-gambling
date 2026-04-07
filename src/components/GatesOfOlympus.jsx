@@ -62,6 +62,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
   const precomputedOrbsRef = useRef(0);
   const autoSpinRef = useRef(false);
   const freeSpinTotalWinRef = useRef(0);
+  const betIdRef = useRef(null);
 
   autoSpinRef.current = autoSpin;
 
@@ -178,10 +179,10 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
       const mult = betAmt > 0 ? totalWin / betAmt : 0;
       if (totalWin > 0) {
         setBalance(prev => prev + totalWin);
-        addPoints(username, totalWin).catch(() => {});
+        addPoints(username, totalWin, 'gates', betIdRef.current).catch(() => {});
         if (isFreeSpinMode) freeSpinTotalWinRef.current += totalWin;
         const winType = totalWin >= betAmt * 25 ? 'mega' : totalWin >= betAmt * 10 ? 'big' : 'win';
-        addHistory([{ emoji: `⚡ Gates ${mult.toFixed(1)}x` }], totalWin - (isFreeSpinMode ? 0 : betAmt), winType, 'gates');
+        addHistory([{ emoji: `⚡ Gates ${Math.floor(mult)}x` }], totalWin - (isFreeSpinMode ? 0 : betAmt), winType, 'gates');
         // Big wins (5x+) get share overlay, but not during free spins (wait for summary)
         if (!isFreeSpinMode && mult >= 5) {
           setShareWin({ amount: totalWin, multiplier: mult });
@@ -268,7 +269,8 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     if (actualBet > 0) {
       setBalance(prev => prev - actualBet);
       try {
-        await deductPoints(username, actualBet);
+        const deductResult = await deductPoints(username, actualBet, 'gates');
+        betIdRef.current = deductResult.betId;
       } catch {
         setBalance(prev => prev + actualBet);
         setAutoSpin(false);
@@ -285,7 +287,7 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
     setWinPositions(new Set());
     setScatterPositions(new Set());
     setScatterCount(0);
-    spinBetRef.current = bet;
+    spinBetRef.current = actualBet;
 
     const newGrid = isBonusBuy ? generateBonusBuyGrid() : generateGrid();
 

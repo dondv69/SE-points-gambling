@@ -21,6 +21,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
   const [shareWin, setShareWin] = useState(null);
   const betRef = useRef(10);
+  const betIdRef = useRef(null);
 
   const handleStart = useCallback(async () => {
     if (bet < MIN_BET) return;
@@ -39,7 +40,8 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
     setBalance(prev => prev - bet);
 
     try {
-      await deductPoints(username, bet);
+      const deductResult = await deductPoints(username, bet, 'mines');
+      betIdRef.current = deductResult.betId;
     } catch {
       setBalance(prev => prev + bet);
       showToast('API error — bet refunded', 'error');
@@ -84,17 +86,17 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
       if (newRevealed.size === GRID_SIZE - mineCount) {
         const payout = Math.floor(betRef.current * mult);
         setBalance(prev => prev + payout);
-        addPoints(username, payout).catch(() => {});
+        addPoints(username, payout, 'mines', betIdRef.current).catch(() => {});
         setPhase(PHASES.RESULT);
         audio.win(mult);
         reportSpin(username, betRef.current, payout);
         addHistory(
-          [{ emoji: `💎 ALL SAFE ${mult}x` }],
+          [{ emoji: `💎 ALL SAFE ${Math.floor(mult)}x` }],
           payout - betRef.current,
           'win',
           'mines'
         );
-        showToast(`ALL CLEAR! +${(payout - betRef.current).toLocaleString()} pts (${mult}x)`, 'win');
+        showToast(`ALL CLEAR! +${(payout - betRef.current).toLocaleString()} pts (${Math.floor(mult)}x)`, 'win');
         if (mult >= 5) setShareWin({ amount: payout, multiplier: mult });
       }
     }
@@ -105,17 +107,17 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
 
     const payout = Math.floor(betRef.current * currentMultiplier);
     setBalance(prev => prev + payout);
-    addPoints(username, payout).catch(() => {});
+    addPoints(username, payout, 'mines', betIdRef.current).catch(() => {});
     setPhase(PHASES.RESULT);
     audio.win(currentMultiplier);
     reportSpin(username, betRef.current, payout);
     addHistory(
-      [{ emoji: `💎 ${currentMultiplier}x (${revealed.size} tiles)` }],
+      [{ emoji: `💎 ${Math.floor(currentMultiplier)}x (${revealed.size} tiles)` }],
       payout - betRef.current,
       'win',
       'mines'
     );
-    showToast(`Cashed out ${currentMultiplier}x — +${(payout - betRef.current).toLocaleString()} pts`, 'win');
+    showToast(`Cashed out ${Math.floor(currentMultiplier)}x — +${(payout - betRef.current).toLocaleString()} pts`, 'win');
     if (currentMultiplier >= 5) setShareWin({ amount: payout, multiplier: currentMultiplier });
   }, [phase, revealed, currentMultiplier, username, setBalance, showToast, addHistory]);
 
@@ -179,11 +181,11 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
           <div className="mn-info-bar">
             <div className="mn-stat">
               <span className="mn-stat-label">Multiplier</span>
-              <span className="mn-stat-value mn-mult">{currentMultiplier}x</span>
+              <span className="mn-stat-value mn-mult">{Math.floor(currentMultiplier)}x</span>
             </div>
             <div className="mn-stat">
               <span className="mn-stat-label">Next</span>
-              <span className="mn-stat-value">{nextMult}x</span>
+              <span className="mn-stat-value">{Math.floor(nextMult)}x</span>
             </div>
             <div className="mn-stat">
               <span className="mn-stat-label">Safe</span>
@@ -196,7 +198,7 @@ export default function Mines({ balance, setBalance, username, showToast, addHis
         {phase === PHASES.PLAYING && revealed.size > 0 && (
           <button className="mn-cashout-btn" onClick={handleCashout}>
             <DollarSign size={18} />
-            CASH OUT {Math.floor(betRef.current * currentMultiplier).toLocaleString()} pts ({currentMultiplier}x)
+            CASH OUT {Math.floor(betRef.current * currentMultiplier).toLocaleString()} pts ({Math.floor(currentMultiplier)}x)
           </button>
         )}
 

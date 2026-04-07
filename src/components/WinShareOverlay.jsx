@@ -45,7 +45,7 @@ export default function WinShareOverlay({ amount, multiplier, username, game, on
           +{amount.toLocaleString()}
         </motion.div>
 
-        <div className="win-share-mult">{multiplier.toFixed(1)}x</div>
+        <div className="win-share-mult">{Math.floor(multiplier)}x</div>
 
         {game && <div className="win-share-game">{game}</div>}
 

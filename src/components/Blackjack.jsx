@@ -57,6 +57,8 @@ export default function Blackjack({ balance, setBalance, username, showToast, ad
   const [busy, setBusy] = useState(false);
 
   const deckRef = useRef([]);
+  const betIdRef = useRef(null);
+  const doubleBetIdRef = useRef(null);
 
   // Draw next card from deck
   const draw = useCallback(() => {
@@ -81,7 +83,9 @@ export default function Blackjack({ balance, setBalance, username, showToast, ad
     setBalance((prev) => prev - bet);
 
     try {
-      await deductPoints(username, bet);
+      const deductResult = await deductPoints(username, bet, 'blackjack');
+      betIdRef.current = deductResult.betId;
+      doubleBetIdRef.current = null;
     } catch {
       setBalance((prev) => prev + bet);
       setBusy(false);
@@ -187,7 +191,8 @@ export default function Blackjack({ balance, setBalance, username, showToast, ad
     setBalance((prev) => prev - bet);
 
     try {
-      await deductPoints(username, bet);
+      const deductResult = await deductPoints(username, bet, 'blackjack');
+      doubleBetIdRef.current = deductResult.betId;
     } catch {
       setBalance((prev) => prev + bet);
       setBusy(false);
@@ -280,7 +285,7 @@ export default function Blackjack({ balance, setBalance, username, showToast, ad
     // Add winnings
     if (payout > 0) {
       try {
-        await addPoints(username, payout);
+        await addPoints(username, payout, 'blackjack', betIdRef.current);
         setBalance((prev) => prev + payout);
       } catch {
         showToast('Failed to add winnings', 'error');
