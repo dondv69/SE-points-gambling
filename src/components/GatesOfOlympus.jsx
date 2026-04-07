@@ -385,32 +385,36 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
   return (
     <div className="gates-game">
       {/* Multiplier / Free Spins bar */}
-      <div className="gates-info-bar">
-        {isFreeSpinMode && (
-          <div className="gates-freespin-bar">
-            <Zap size={14} />
-            <span>FREE SPINS: {freeSpins}</span>
-            <span className="gates-fs-mult">MULT: {freeSpinMultiplier > 0 ? `${freeSpinMultiplier}x` : '—'}</span>
-          </div>
-        )}
-        {cascadeWin > 0 && phase !== 'idle' && (
-          <div className="gates-cascade-win">
-            CASCADE WIN: {cascadeWin.toLocaleString()}
-            {cascadeMultiplier > 0 && !isFreeSpinMode && ` × ${cascadeMultiplier}x`}
-            {isFreeSpinMode && freeSpinMultiplier > 0 && ` × ${freeSpinMultiplier}x`}
-          </div>
-        )}
+      <div className="gates-status-lane gates-status-lane-top">
+        <div className="gates-info-bar">
+          {isFreeSpinMode && (
+            <div className="gates-freespin-bar">
+              <Zap size={14} />
+              <span>FREE SPINS: {freeSpins}</span>
+              <span className="gates-fs-mult">MULT: {freeSpinMultiplier > 0 ? `${freeSpinMultiplier}x` : '—'}</span>
+            </div>
+          )}
+          {cascadeWin > 0 && phase !== 'idle' && (
+            <div className="gates-cascade-win">
+              CASCADE WIN: {cascadeWin.toLocaleString()}
+              {cascadeMultiplier > 0 && !isFreeSpinMode && ` × ${cascadeMultiplier}x`}
+              {isFreeSpinMode && freeSpinMultiplier > 0 && ` × ${freeSpinMultiplier}x`}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Scatter counter */}
-      {scatterCount > 0 && (
-        <div className={`gates-scatter-counter ${scatterCount >= 4 ? 'gates-scatter-trigger' : scatterCount >= 3 ? 'gates-scatter-hype' : ''}`}>
-          <Zap size={16} />
-          <span>SCATTER ×{scatterCount}</span>
-          {scatterCount >= 4 && <span className="gates-scatter-go">FREE SPINS!</span>}
-          {scatterCount === 3 && <span className="gates-scatter-close">SO CLOSE!</span>}
-        </div>
-      )}
+      <div className="gates-status-lane gates-status-lane-scatter">
+        {scatterCount > 0 && (
+          <div className={`gates-scatter-counter ${scatterCount >= 4 ? 'gates-scatter-trigger' : scatterCount >= 3 ? 'gates-scatter-hype' : ''}`}>
+            <Zap size={16} />
+            <span>SCATTER ×{scatterCount}</span>
+            {scatterCount >= 4 && <span className="gates-scatter-go">FREE SPINS!</span>}
+            {scatterCount === 3 && <span className="gates-scatter-close">SO CLOSE!</span>}
+          </div>
+        )}
+      </div>
 
       {/* 6×5 Grid — CSS-driven animations */}
       <div className={`gates-grid ${phase === 'dropping' ? 'gates-grid-dropping' : ''}`}>
@@ -463,19 +467,21 @@ export default function GatesOfOlympus({ balance, setBalance, username, showToas
       </div>
 
       {/* Small win display (inline, below 5x) */}
-      <AnimatePresence>
-        {showWin && showWin.multiplier < 5 && (
-          <motion.div
-            className="gates-win-display"
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-          >
-            <span className="gates-win-amount">+{showWin.amount.toLocaleString()}</span>
-            <span className="gates-win-label">pts</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="gates-status-lane gates-status-lane-win">
+        <AnimatePresence>
+          {showWin && showWin.multiplier < 5 && (
+            <motion.div
+              className="gates-win-display"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+            >
+              <span className="gates-win-amount">+{showWin.amount.toLocaleString()}</span>
+              <span className="gates-win-label">pts</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Free spins intro */}
       <AnimatePresence>
