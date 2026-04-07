@@ -39,6 +39,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
   const stoppedReels = useRef(0);
   const currentResults = useRef([]);
   const actualBetRef = useRef(0);
+  const baseBetRef = useRef(0);
   const betIdRef = useRef(null);
   const autoSpinRef = useRef(false);
   const broadcastChannel = useRef(
@@ -60,6 +61,7 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
     const actualBet = inFreeSpins ? 0 : (isBonusBuy ? bet * BONUS_BUY_MULTIPLIER : bet);
     actualBetRef.current = actualBet;
+    baseBetRef.current = bet;
 
     if (!inFreeSpins) {
       let currentBalance = balance;
@@ -126,11 +128,11 @@ export default function SlotMachine({ balance, setBalance, username, jackpot, se
 
   // Generic bonus game complete — all instant-payout bonus games use this
   const handleBonusGameComplete = useCallback((totalMultiplier, gameName, emoji) => {
-    const payout = Math.floor(bonusBet * totalMultiplier);
+    const payout = Math.floor(baseBetRef.current * totalMultiplier);
     if (payout > 0) {
       setBalance(prev => prev + payout);
       addPoints(username, payout, 'slots', betIdRef.current).catch(() => {});
-      showToast(`${gameName}: ${totalMultiplier}x — +${(payout - bonusBet).toLocaleString()} pts!`, payout > bonusBet * 5 ? 'mega' : 'win');
+      showToast(`${gameName}: ${totalMultiplier}x — +${payout.toLocaleString()} pts!`, payout > baseBetRef.current * 5 ? 'mega' : 'win');
       // Show share overlay for bonus wins
       setShareWin({ amount: payout, multiplier: totalMultiplier, game: `Slots — ${gameName}` });
     } else {
