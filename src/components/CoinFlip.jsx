@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FastForward } from 'lucide-react';
 import { deductPoints, addPoints, fetchPoints } from '../utils/api';
 import { reportSpin } from '../utils/leaderboardApi';
 import { MIN_BET, BET_PRESETS } from '../utils/constants';
@@ -7,6 +8,9 @@ import { audio } from '../utils/audio';
 
 const MAX_BET = 10000;
 const PHASES = { IDLE: 'idle', FLIPPING: 'flipping', RESULT: 'result' };
+
+const NORMAL_TRANSITION = { type: 'spring', stiffness: 40, damping: 12 };
+const TURBO_TRANSITION = { type: 'spring', stiffness: 120, damping: 20 };
 
 const CHOICES = [
   { id: 'heads', label: 'HEADS', symbol: 'H' },
@@ -22,11 +26,12 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
   const [phase, setPhase] = useState(PHASES.IDLE);
   const [bet, setBet] = useState(50);
   const [customBet, setCustomBet] = useState('');
-  const [choice, setChoice] = useState(null);
+  const [choice, setChoice] = useState('heads');
   const [result, setResult] = useState(null);
   const [won, setWon] = useState(null);
   const [busy, setBusy] = useState(false);
   const [flipKey, setFlipKey] = useState(0);
+  const [turbo, setTurbo] = useState(false);
 
   const handleCustomBet = (e) => {
     const val = e.target.value.replace(/[^0-9]/g, '');
@@ -80,7 +85,7 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
   }, [busy, choice, bet, balance, username, setBalance, showToast]);
 
   const handleFlipComplete = useCallback(async () => {
-    if (!won || !bet) return;
+    if (phase !== PHASES.FLIPPING) return;
 
     if (won) {
       const payout = bet * 2;
@@ -152,7 +157,7 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
           animate={flipping || showResult ? { rotateY: getRotation(result) } : { rotateY: 0 }}
           transition={
             flipping || showResult
-              ? { type: 'spring', stiffness: 80, damping: 15, duration: 1.8 }
+              ? turbo ? TURBO_TRANSITION : NORMAL_TRANSITION
               : { duration: 0 }
           }
           onAnimationComplete={() => {
@@ -227,13 +232,35 @@ export default function CoinFlip({ balance, setBalance, username, showToast, add
           >
             FLIP {bet.toLocaleString()}
           </button>
+          <button
+            style={{
+              ...styles.optionBtn,
+              ...(turbo ? styles.optionBtnActive : {}),
+            }}
+            onClick={() => setTurbo((t) => !t)}
+            title={turbo ? 'Normal speed' : 'Turbo speed'}
+          >
+            <FastForward size={14} /> {turbo ? 'TURBO ON' : 'TURBO'}
+          </button>
         </div>
       )}
 
       {showResult && (
-        <button style={styles.flipBtn} onClick={handleNewGame}>
-          FLIP AGAIN
-        </button>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+          <button style={styles.flipBtn} onClick={handleNewGame}>
+            FLIP AGAIN
+          </button>
+          <button
+            style={{
+              ...styles.optionBtn,
+              ...(turbo ? styles.optionBtnActive : {}),
+            }}
+            onClick={() => setTurbo((t) => !t)}
+            title={turbo ? 'Normal speed' : 'Turbo speed'}
+          >
+            <FastForward size={14} /> {turbo ? 'TURBO ON' : 'TURBO'}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -402,5 +429,28 @@ const styles = {
     letterSpacing: 1,
     cursor: 'pointer',
     transition: 'opacity var(--t-fast)',
+  },
+  optionBtn: {
+    width: '100%',
+    padding: 'var(--sp-2) var(--sp-4)',
+    borderRadius: 'var(--r-md)',
+    border: '1px solid var(--bezel)',
+    background: 'var(--panel)',
+    color: 'var(--ink-secondary)',
+    fontFamily: "'Chakra Petch', sans-serif",
+    fontWeight: 600,
+    fontSize: 12,
+    letterSpacing: 1,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    transition: 'all var(--t-fast)',
+  },
+  optionBtnActive: {
+    background: 'var(--discharge)',
+    color: '#1e1e2e',
+    borderColor: 'var(--discharge)',
   },
 };
